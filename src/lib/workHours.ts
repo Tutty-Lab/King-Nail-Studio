@@ -1,8 +1,8 @@
 // ============================================================================
 // Arbeitszeit-Fenster (giờ làm) je Wochentag + Feiertag. Das ist das Fenster,
 // in dem Schichten geplant werden dürfen (Früh am Fenster-Beginn, Spät am
-// Fenster-Ende). Feiertage (Bayern) werden für die Nachfrage wie Sonntag
-// behandelt, verwenden aber ihr eigenes Zeitfenster.
+// Fenster-Ende). Feiertage (Baden-Württemberg) werden für die Nachfrage wie
+// Sonntag behandelt und haben ihr eigenes Zeitfenster.
 // ============================================================================
 
 import { parseIsoDate, weekdayKeyOf, type WeekdayKey } from "./demand";
@@ -10,11 +10,10 @@ import { parseIsoDate, weekdayKeyOf, type WeekdayKey } from "./demand";
 export type DayWindow = { startMinutes: number; endMinutes: number };
 
 /**
- * Ein Arbeitstag kann aus MEHREREN Blöcken bestehen.
- *
- * Viet Cuisine öffnet Di–Sa zweimal am Tag (10:30–14:30 und 16:30–22:30). Ein
- * Dienst muss immer KOMPLETT in einen Block passen – über die
- * Mittagsschließung hinweg gibt es keine Schicht.
+ * Ein Arbeitstag besteht bei Shin aus ZWEI Blöcken: mittags und abends.
+ * Dazwischen (15:00–17:00) ist der Laden zu – das ist keine bezahlte Pause,
+ * sondern geschlossene Zeit. Ein Dienst muss immer KOMPLETT in einen Block
+ * passen.
  */
 export type DayBlocks = DayWindow[];
 
@@ -23,8 +22,8 @@ export type WorkHoursConfig = {
   holiday: DayBlocks;
   /**
    * Wochentage, an denen der Laden grundsätzlich geschlossen ist (kein Dienst).
-   * Bei Viet Cuisine ist das der Montag. Ein Datum-Override mit eigenen Zeiten kann
-   * einen solchen Tag im Einzelfall trotzdem öffnen.
+   * Bei Shin ist das der Montag (Ruhetag). Ein Datum-Override mit eigenen
+   * Zeiten kann einen solchen Tag im Einzelfall trotzdem öffnen.
    */
   closedWeekdays: Record<WeekdayKey, boolean>;
 };
@@ -69,28 +68,26 @@ export function longestBlock(blocks: DayBlocks): number {
 
 const w = (start: number, end: number): DayWindow => ({ startMinutes: start, endMinutes: end });
 
-// Vorgabe des Betriebs (Viet Cuisine GmbH), Arbeitszeit:
-//   Montag             geschlossen
-//   Dienstag–Samstag   10:30–14:30 UND 16:30–22:30  (zwei Blöcke, Pause 14:30–16:30)
-//   Sonntag & Feiertag 10:30–22:00 DURCHGEHEND (keine Mittagspause, ganzer Tag)
-const MITTAGS_SPLIT: DayBlocks = [w(10 * 60 + 30, 14 * 60 + 30), w(16 * 60 + 30, 22 * 60 + 30)];
-const DURCHGEHEND: DayBlocks = [w(10 * 60 + 30, 22 * 60)];
+// Vorgabe des Betriebs (Shin Restaurant), Arbeitszeit:
+//   Montag             Ruhetag
+//   Dienstag–Sonntag   11:30–15:00 UND 17:00–22:00
+//   Feiertag           wie Sonntag geöffnet (stärkster Umsatz)
+const SHIN_TAG: DayBlocks = [w(11 * 60 + 30, 15 * 60), w(17 * 60, 22 * 60)];
 
 export const DEFAULT_WORK_HOURS: WorkHoursConfig = {
   perWeekday: {
-    monday: MITTAGS_SPLIT.map((b) => ({ ...b })), // geschlossen, nur als Rückfall
-    tuesday: MITTAGS_SPLIT.map((b) => ({ ...b })),
-    wednesday: MITTAGS_SPLIT.map((b) => ({ ...b })),
-    thursday: MITTAGS_SPLIT.map((b) => ({ ...b })),
-    friday: MITTAGS_SPLIT.map((b) => ({ ...b })),
-    saturday: MITTAGS_SPLIT.map((b) => ({ ...b })),
-    // Sonntag durchgehend, ohne Mittagsschließung.
-    sunday: DURCHGEHEND.map((b) => ({ ...b })),
+    monday: SHIN_TAG.map((b) => ({ ...b })), // geschlossen, nur als Rückfall
+    tuesday: SHIN_TAG.map((b) => ({ ...b })),
+    wednesday: SHIN_TAG.map((b) => ({ ...b })),
+    thursday: SHIN_TAG.map((b) => ({ ...b })),
+    friday: SHIN_TAG.map((b) => ({ ...b })),
+    saturday: SHIN_TAG.map((b) => ({ ...b })),
+    sunday: SHIN_TAG.map((b) => ({ ...b })),
   },
-  // Feiertage werden wie Sonntag behandelt: der Laden ist OFFEN, durchgehend.
-  holiday: DURCHGEHEND.map((b) => ({ ...b })),
+  // Feiertage: offen wie sonst, aber mit dem höchsten Umsatz (siehe DAY_WEIGHTS).
+  holiday: SHIN_TAG.map((b) => ({ ...b })),
   closedWeekdays: {
-    monday: true, // Viet Cuisine: montags geschlossen
+    monday: true, // Shin: montags Ruhetag
     tuesday: false,
     wednesday: false,
     thursday: false,
@@ -134,7 +131,7 @@ const open = (blocks: DayBlocks): ResolvedDay => ({
 /**
  * Vollständige Auflösung eines Tages inkl. Ausnahmen:
  * Ausnahme geschlossen > Ausnahme eigene Zeiten > geschlossener Wochentag
- * (z.B. Montag) > Feiertag > Wochentag.
+ * (Montag) > Feiertag > Wochentag.
  */
 export function resolveDay(
   config: WorkHoursConfig,

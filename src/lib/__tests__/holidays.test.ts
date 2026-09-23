@@ -8,7 +8,7 @@ import { DEFAULT_WORK_HOURS } from "../workHours";
 import { SAMPLE_EMPLOYEES } from "../sampleData";
 import { format } from "date-fns";
 
-describe("Feiertage (Bayern)", () => {
+describe("Feiertage (Baden-Württemberg)", () => {
   it("berechnet Ostersonntag korrekt", () => {
     expect(format(easterSunday(2026), "yyyy-MM-dd")).toBe("2026-04-05");
     expect(format(easterSunday(2024), "yyyy-MM-dd")).toBe("2024-03-31");
@@ -17,26 +17,26 @@ describe("Feiertage (Bayern)", () => {
   it("enthält die festen und beweglichen Bayern-Feiertage 2026", () => {
     const h = publicHolidays(2026);
     expect(h.has("2026-01-01")).toBe(true); // Neujahr
-    expect(h.has("2026-01-06")).toBe(true); // Heilige Drei Könige (Bayern)
+    expect(h.has("2026-01-06")).toBe(true); // Heilige Drei Könige (BW)
     expect(h.has("2026-04-03")).toBe(true); // Karfreitag
     expect(h.has("2026-04-06")).toBe(true); // Ostermontag
     expect(h.has("2026-05-01")).toBe(true); // Tag der Arbeit
     expect(h.has("2026-05-14")).toBe(true); // Christi Himmelfahrt
     expect(h.has("2026-05-25")).toBe(true); // Pfingstmontag
-    expect(h.has("2026-06-04")).toBe(true); // Fronleichnam (Bayern, Ostern+60)
-    expect(h.has("2026-08-15")).toBe(true); // Mariä Himmelfahrt (Bayern, kath.)
+    expect(h.has("2026-06-04")).toBe(true); // Fronleichnam (BW, Ostern+60)
+    expect(h.has("2026-08-15")).toBe(false); // Mariä Himmelfahrt – nur BY/SL
     expect(h.has("2026-10-03")).toBe(true); // Deutsche Einheit
-    expect(h.has("2026-11-01")).toBe(true); // Allerheiligen (Bayern)
+    expect(h.has("2026-11-01")).toBe(true); // Allerheiligen (BW)
     expect(h.has("2026-12-25")).toBe(true);
     expect(h.has("2026-12-26")).toBe(true);
-    expect(h.size).toBe(13);
+    expect(h.size).toBe(12);
   });
 
   it("enthält KEINE Feiertage anderer Bundesländer", () => {
     const h = publicHolidays(2026);
     expect(h.has("2026-04-05")).toBe(false); // Ostersonntag – nur Brandenburg
     expect(h.has("2026-05-24")).toBe(false); // Pfingstsonntag – nur Brandenburg
-    expect(h.has("2026-10-31")).toBe(false); // Reformationstag – nicht in Bayern
+    expect(h.has("2026-10-31")).toBe(false); // Reformationstag – nicht in Baden-Württemberg
     expect(h.has("2026-11-18")).toBe(false); // Buß- und Bettag – nur Sachsen
   });
 

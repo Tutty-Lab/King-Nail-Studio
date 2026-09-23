@@ -32,8 +32,8 @@ type Day = ReturnType<typeof resolveDay>;
 
 const SLOT = 30;
 const MIN_SHIFT = 180;
-/** Höchste bezahlte Zeit je Tag (siehe validation.ts). */
-const MAX_PAID = 540;
+/** Höchste bezahlte Zeit je Tag: 8 h (Vorgabe des Betriebs, siehe validation.ts). */
+const MAX_PAID = 480;
 /** Cost per (person deviation)² per 30-minute slot against the demand curve. */
 const SLOT_DEVIATION_COST = 300;
 /** Small preference for one continuous shift over a split shift on the same day. */
@@ -318,11 +318,20 @@ function chooseWeek(
   }
   // Exact weekly minutes take priority. An impossible quota stays short and
   // is reported by validation, never transferred to another week.
+  // Feiertagspflicht (requiredOnHolidays): wer an Feiertagen im Dienst sein
+  // muss, verliert diesen Tag nicht an eine sonst leicht bessere Verteilung.
+  // Unmöglich (Feiertag vor Eintritt, Laden zu) bleibt folgenlos.
+  const requiredIndexes = employee.requiredOnHolidays
+    ? eligible.map((date, index) => (holidays.has(date) ? index : -1)).filter((index) => index >= 0)
+    : [];
+  const missingRequired = (mask: number) =>
+    requiredIndexes.filter((index) => (mask & (1 << index)) === 0).length;
+
   let best: Allocation | undefined;
   let bestCost = Infinity;
   for (const state of states.values()) {
     // Vollzeit „thường 6 ngày/tuần": die Tageszahl hält, die Länge je Tag folgt dem Gewicht.
-    const cost = state.cost + (state.choices.length - preferredCount) ** 2 * 50000;
+    const cost = state.cost + (state.choices.length - preferredCount) ** 2 * 50000 + missingRequired(state.mask) * 500000;
     if (!best || state.paid > best.paid || (state.paid === best.paid && cost < bestCost)) {
       best = state;
       bestCost = cost;
@@ -331,6 +340,75 @@ function chooseWeek(
   return best?.choices ?? [];
 }
 
+/**
+ * Nachschlag: die letzten Rest-Minuten an bestehende Dienste hängen.
+ *
+ * Das Monats-Soll wird je ISO-Woche verteilt und dort exakt geplant. Was beim
+ * Runden auf das 30-Minuten-Raster übrig bleibt (oft 30–120 min), konnte bisher
+ * nirgendwo mehr unterkommen und endete als Warnung „zu wenig geplant". Hier
+ * wächst deshalb zum Schluss ein passender Dienst um 30 Minuten – solange
+ * Tagesgrenze, Öffnungsblock und (bei Wochenverträgen) das Wochenbudget das
+ * hergeben. Gewählt wird die Stelle, die der Nachfragekurve am wenigsten
+ * schadet.
+ */
+function topUpShortfalls(
+  result: Shift[],
+  employees: Employee[],
+  days: Map<string, Day>,
+  holidays: Set<string>,
+  dailyTargets: Map<string, number>,
+  targets: Map<string, number>,
+  weeklyCaps: Map<string, Map<string, number>>,
+): Shift[] {
+  let shifts = [...result];
+  for (const employee of employees) {
+    if (employee.fixedShift) continue; // feste Schicht bleibt unangetastet
+    const target = targets.get(employee.id) ?? 0;
+    const paidOf = (list: Shift[]) => list.reduce((sum, shift) => sum + shift.paidMinutes, 0);
+    let guard = 0;
+    while (guard++ < 60) {
+      const own = shifts.filter((shift) => shift.employeeId === employee.id);
+      if (target - paidOf(own) < SLOT) break;
+      let best: { old: Shift; next: Shift; cost: number } | undefined;
+      for (const shift of own) {
+        const day = days.get(shift.date);
+        if (!day || day.closed) continue;
+        const block = day.blocks.find(
+          (candidate) => shift.startMinutes >= candidate.startMinutes && shift.endMinutes <= candidate.endMinutes,
+        );
+        if (!block) continue;
+        const sameDay = own.filter((other) => other.date === shift.date);
+        if (paidOf(sameDay) + SLOT > MAX_PAID) continue;
+        const paid = shift.paidMinutes + SLOT;
+        if (paid > MAX_PAID) continue;
+        const week = weekStartOf(shift.date);
+        const cap = weeklyCaps.get(employee.id)?.get(week);
+        if (cap != null) {
+          const inWeek = own.filter((other) => weekStartOf(other.date) === week);
+          if (paidOf(inWeek) + SLOT > cap) continue;
+        }
+        const presence = paid + calculatePause(paid);
+        const weekday = effectiveWeekdayKey(shift.date, holidays);
+        const onDay = shifts.filter((other) => other.date === shift.date);
+        const others = onDay.filter((other) => other !== shift);
+        const before = dayCost(onDay, day.blocks, weekday, dailyTargets.get(shift.date));
+        for (const start of [shift.startMinutes, shift.endMinutes - presence, block.endMinutes - presence]) {
+          if (start < block.startMinutes || start + presence > block.endMinutes) continue;
+          const grown = makeShift(employee.id, shift.date, start, paid, shift.shiftType === "EARLY" ? "EARLY" : "LATE", weekday);
+          const clash = sameDay.some(
+            (other) => other !== shift && other.startMinutes < grown.endMinutes && grown.startMinutes < other.endMinutes,
+          );
+          if (clash) continue;
+          const cost = dayCost([...others, grown], day.blocks, weekday, dailyTargets.get(shift.date)) - before;
+          if (!best || cost < best.cost) best = { old: shift, next: grown, cost };
+        }
+      }
+      if (!best) break;
+      shifts = shifts.map((shift) => (shift === best!.old ? best!.next : shift));
+    }
+  }
+  return shifts;
+}
 /**
  * Final per-day polish, keeping every person's paid minutes for the day:
  *  1. move a person's shift(s) to a better start (all 30-minute options),
@@ -490,6 +568,23 @@ export function generateWeeklySchedule(input: WeeklyInput, existing: Shift[] = [
     }
     if (!changed) break;
   }
+  // Rest-Minuten aus der Wochenrundung noch unterbringen (siehe topUpShortfalls).
+  const monthlyTargets = new Map(
+    employees.map((employee) => [
+      employee.id,
+      employee.weeklyHours != null
+        ? [...(budgets.get(employee.id)?.values() ?? [])].reduce((sum, minutes) => sum + minutes, 0)
+        : employee.targetMinutes,
+    ] as const),
+  );
+  // Ein WOCHENvertrag ist eine harte Grenze je Woche; ein Monatsvertrag nicht.
+  const weeklyCaps = new Map(
+    employees
+      .filter((employee) => employee.weeklyHours != null)
+      .map((employee) => [employee.id, budgets.get(employee.id)!] as const),
+  );
+  result = topUpShortfalls(result, employees, days, holidays, dailyTargets, monthlyTargets, weeklyCaps);
+
   return improveCoverage(result, employees, days, holidays, dailyTargets)
     .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes || a.employeeId.localeCompare(b.employeeId));
 }

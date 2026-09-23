@@ -43,11 +43,16 @@ function splitInfo(targetHours: number, type: EmploymentType): { ok: boolean; te
 type Draft = {
   name: string;
   employmentType: EmploymentType;
-  weekly: string;
+  /** Wird der Vertrag je Woche oder je Monat geführt? */
+  unit: "week" | "month";
+  /** Stunden zur gewählten Einheit, als Text – „40,2" mit Komma ist erlaubt. */
+  hours: string;
   fixed: boolean;
   fixedStart: string; // "HH:MM"
   fixedEnd: string; // "HH:MM"
   availableWeekdays: WeekdayKey[]; // [] = mọi ngày
+  /** Ngày lễ bắt buộc có mặt (Shin: Bá Việt Nguyen). */
+  holidayDuty: boolean;
   maxDays: string;
   startDate: string; // "yyyy-MM-dd" hoặc "" = từ đầu tháng
 };
@@ -56,12 +61,16 @@ function draftFrom(emp?: Employee): Draft {
   return {
     name: emp?.name ?? "",
     employmentType: emp?.employmentType ?? "VOLLZEIT",
-    weekly: emp?.weeklyHours != null ? String(emp.weeklyHours) : "39",
+    unit: emp?.weeklyHours != null ? "week" : "month",
+    hours: emp
+      ? String(emp.weeklyHours ?? Math.round((emp.targetMinutes / 60) * 100) / 100).replace(".", ",")
+      : "169",
     fixed: !!emp?.fixedShift,
     // Vorhandene feste Schicht übernehmen, sonst die Voreinstellung anzeigen.
     fixedStart: emp?.fixedShift ? minutesToTime(emp.fixedShift.startMinutes) : FIXED_START_DEFAULT,
     fixedEnd: emp?.fixedShift ? minutesToTime(emp.fixedShift.endMinutes) : FIXED_END_DEFAULT,
     availableWeekdays: emp?.availableWeekdays ?? [],
+    holidayDuty: emp?.requiredOnHolidays ?? false,
     maxDays: emp?.maxDaysPerWeek ? String(emp.maxDaysPerWeek) : "",
     startDate: emp?.startDate ?? "",
   };
@@ -70,6 +79,7 @@ function draftFrom(emp?: Employee): Draft {
 /** Tóm tắt các thiết lập „Nâng cao" đang bật (dòng dưới tiêu đề), hoặc null nếu chưa đặt gì. */
 function advancedSummary(d: Draft): string | null {
   const parts: string[] = [];
+  if (d.holidayDuty) parts.push("trực ngày lễ");
   if (d.fixed) parts.push(`ca cố định ${d.fixedStart}–${d.fixedEnd}`);
   if (d.availableWeekdays.length > 0 && d.availableWeekdays.length < WEEKDAY_ORDER.length) {
     const days = WEEKDAY_ORDER.filter((key) => d.availableWeekdays.includes(key)).map((key) => WEEKDAY_SHORT_VI[key]);
@@ -94,15 +104,17 @@ function safeMinutes(time: string, fallback: string): number {
 
 /** Entwurf -> Mitarbeiter-Felder (ohne id). */
 function draftToEmployee(d: Draft): Omit<Employee, "id"> {
-  const weekly = Math.max(0, Math.round(Number(d.weekly) || 0));
+  const hours = Math.max(0, Number(d.hours.trim().replace(",", ".")) || 0);
   const tage = Number(d.maxDays);
   const fixedStart = safeMinutes(d.fixedStart, FIXED_START_DEFAULT);
   const fixedEnd = safeMinutes(d.fixedEnd, FIXED_END_DEFAULT);
   return {
     name: d.name.trim() || "Nhân viên mới",
     employmentType: d.employmentType,
-    targetMinutes: 0, // wird je Monat aus weeklyHours abgeleitet (contract.ts)
-    weeklyHours: weekly,
+    // Monatsvertrag: die Stunden stehen direkt im Soll. Wochenvertrag: das
+    // Monats-Soll wird je Monat daraus abgeleitet (contract.ts).
+    targetMinutes: d.unit === "month" ? Math.round(hours * 60) : 0,
+    weeklyHours: d.unit === "week" ? hours : undefined,
     // Ende muss nach Beginn liegen – sonst die feste Schicht ignorieren, statt
     // eine kaputte Zeitspanne zu speichern.
     fixedShift:
@@ -114,6 +126,7 @@ function draftToEmployee(d: Draft): Omit<Employee, "id"> {
         ? undefined
         : [...d.availableWeekdays],
     maxDaysPerWeek: d.maxDays === "" || tage < 1 ? undefined : Math.min(7, Math.round(tage)),
+    requiredOnHolidays: d.holidayDuty ? true : undefined,
     // Leeres Feld = von Monatsanfang an dabei (kein Eintrittsdatum).
     startDate: /^\d{4}-\d{2}-\d{2}$/.test(d.startDate) ? d.startDate : undefined,
   };
@@ -153,9 +166,9 @@ export function EmployeesTab({ store }: { store: UseScheduleReturn }) {
         </button>
       </div>
       <p className="text-xs text-slate-500 mb-4">
-        Giờ nhập theo <b>tuần</b>. Tuần đủ giữ đúng giờ hợp đồng; tuần vắt qua 2 tháng chia theo <b>hệ số ngày</b>
-        (VD T3+T4 cuối tháng ≈ 26% tuần).
-        Tháng này tính định mức trên <b>{openDays}</b> ngày, tối đa 6 ngày mỗi tuần. Bấm vào một người để sửa.
+        Hợp đồng nhập theo <b>tháng</b> (hoặc theo tuần nếu người đó ký theo tuần). Giờ được chia cho các
+        tuần rồi cho từng ngày theo hệ số ngày đông. Tháng này quán mở <b>{openDays}</b> ngày, mỗi người tối
+        đa 6 ngày liên tiếp và 8 giờ công mỗi ngày. Bấm vào một người để sửa.
       </p>
 
       {locked && (
@@ -244,9 +257,15 @@ function EmployeeSummaryRow({
       </div>
       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
         <span>
-          {emp.weeklyHours ?? 0}h/tuần · {monatH > 0 ? `${minutesToShortHours(monatMin)} · ` : ""}
+          {emp.weeklyHours != null
+            ? `${emp.weeklyHours}h/tuần`
+            : `${String(Math.round((emp.targetMinutes / 60) * 100) / 100).replace(".", ",")}h/tháng`}{" "}
+          · {monatH > 0 ? `${minutesToShortHours(monatMin)} · ` : ""}
           <span className={info.ok ? "" : "text-rose-600"}>{info.text}</span>
         </span>
+        {emp.requiredOnHolidays ? (
+          <span className="rounded bg-amber-50 text-amber-800 px-1.5 py-0.5">trực ngày lễ</span>
+        ) : null}
         {emp.fixedShift ? (
           <span className="rounded bg-indigo-50 text-indigo-700 px-1.5 py-0.5">
             ca cố định {minutesToTime(emp.fixedShift.startMinutes)}–
@@ -320,7 +339,7 @@ function EmployeeSheet({
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <label className="block">
               <span className="text-xs text-slate-600">Hình thức</span>
               <select
@@ -334,15 +353,24 @@ function EmployeeSheet({
               </select>
             </label>
             <label className="block">
-              <span className="text-xs text-slate-600">Giờ / tuần</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                step={1}
+              <span className="text-xs text-slate-600">Hợp đồng theo</span>
+              <select
                 className={`${inputClass} w-full mt-1`}
-                value={d.weekly}
-                onChange={(e) => set("weekly", e.target.value)}
+                value={d.unit}
+                onChange={(e) => set("unit", e.target.value as Draft["unit"])}
+              >
+                <option value="month">Tháng</option>
+                <option value="week">Tuần</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs text-slate-600">Số giờ</span>
+              <input
+                inputMode="decimal"
+                className={`${inputClass} w-full mt-1`}
+                value={d.hours}
+                onChange={(e) => set("hours", e.target.value)}
+                placeholder={d.unit === "week" ? "VD 39" : "VD 169"}
               />
             </label>
           </div>
@@ -373,6 +401,21 @@ function EmployeeSheet({
             <div className="space-y-4 border-t border-slate-100 px-3 pb-3 pt-3">
           <div>
             <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={d.holidayDuty}
+                onChange={(e) => set("holidayDuty", e.target.checked)}
+              />
+              <span>
+                Trực ngày lễ
+                <span className="block text-xs text-slate-500">
+                  Ngày lễ nào quán mở thì người này luôn có ca.
+                </span>
+              </span>
+            </label>
+
+            <label className="mt-3 flex items-start gap-2 text-sm text-slate-700 cursor-pointer select-none">
               <input
                 type="checkbox"
                 className="mt-0.5"

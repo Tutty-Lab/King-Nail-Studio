@@ -1,17 +1,20 @@
-import { useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useMemo, useState } from "react";
 import type { UseScheduleReturn } from "../hooks/useSchedule";
 import type { Employee } from "../types";
 import { StundenzettelPage } from "./StundenzettelPage";
-import { SchedulePrintPage, type SchedulePrintLayout } from "./SchedulePrintPage";
-import { elementsToPdf, safeFileName, sharePdf } from "../lib/pdf";
+import type { SchedulePrintLayout } from "./SchedulePrintPage";
+import {
+  buildDienstplanPdf,
+  buildStundenzettelPdf,
+  deliver,
+  safeFileName,
+  sharePdf,
+} from "../lib/pdf";
 import { chromeIntentUrl, detectInAppBrowser } from "../lib/inAppBrowser";
 import { isScheduleYearAllowed, SCHEDULE_YEAR_RANGE_LABEL } from "../lib/years";
 import { weeksOfMonth } from "../lib/weeks";
 import { datesOfMonth } from "../lib/demand";
 import { monthLabel } from "../lib/shiftOps";
-import { effectiveWeekdayKey } from "../lib/workHours";
-import { publicHolidays } from "../lib/holidays";
 
 /** Dienstplan-Ausdruck (Monat oder eine Woche), evtl. auf eine Person gefiltert. */
 type ScheduleRange = {
@@ -25,20 +28,6 @@ type ScheduleRange = {
 
 export function StundenzettelTab({ store }: { store: UseScheduleReturn }) {
   const { schedule, isLocked, markWeekPrinted, unlockMonth, generate } = store;
-
-  const hasSplitSunday = useMemo(() => {
-    const holidays = publicHolidays(schedule.year);
-    for (const s of schedule.shifts) {
-      if (effectiveWeekdayKey(s.date, holidays) === "sunday") {
-        const count = schedule.shifts.filter(
-          (other) => other.date === s.date && other.employeeId === s.employeeId,
-        ).length;
-        // CN là ca liền (tab Tài liệu); ca dài ở CN là đúng hệ số 1,5, chỉ báo khi bị chia 2 ca.
-        if (count > 1) return true;
-      }
-    }
-    return false;
-  }, [schedule.year, schedule.shifts]);
 
   // Trình duyệt nhúng (Zalo, Messenger, Facebook …) không lưu được file tải thẳng.
   const inApp = useMemo(
@@ -60,12 +49,8 @@ export function StundenzettelTab({ store }: { store: UseScheduleReturn }) {
     [schedule.year, schedule.month],
   );
 
-  // PDF-Bühne.
-  const [pdfList, setPdfList] = useState<Employee[] | null>(null);
-  const [pdfSchedule, setPdfSchedule] = useState<ScheduleRange | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<string>("");
-  const pdfStage = useRef<HTMLDivElement>(null);
   /** Lỗi tạo PDF – hiện ngay trên trang (alert bị trình duyệt nhúng chặn). */
   const [pdfError, setPdfError] = useState<string | null>(null);
   /** Trình duyệt nhúng: PDF đã tạo xong, chờ người dùng bấm Lưu / Chia sẻ. */
@@ -73,10 +58,6 @@ export function StundenzettelTab({ store }: { store: UseScheduleReturn }) {
   const [shareNote, setShareNote] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Zeitraum für den Stundenzettel-Ausdruck: gesetzt => Wochen-Zettel (nur diese
-  // Tage), leer => ganzer Monat.
-  const [szDates, setSzDates] = useState<string[] | undefined>(undefined);
-  const [szLabel, setSzLabel] = useState<string | undefined>(undefined);
 
   /** Zweiter Klick für das Entsperren – ohne native Dialoge, siehe unten. */
   const [confirmUnlock, setConfirmUnlock] = useState(false);
@@ -111,8 +92,10 @@ export function StundenzettelTab({ store }: { store: UseScheduleReturn }) {
     `Không tạo được PDF: ${err instanceof Error ? err.message : String(err)}`;
 
   /**
-   * PDF: các trang phải được render thật (không display:none) thì html2canvas
-   * mới chụp được – vì vậy dùng "sân khấu" nằm ngoài màn hình.
+   * Stundenzettel-PDF: echtes Vektor-PDF direkt aus den Daten (jsPDF zeichnet
+   * Text und Linien). Kein Screenshot der Seite mehr – deshalb gibt es keine
+   * Offscreen-Bühne, kein Warten auf Schriften und kein Gerät, auf dem die
+   * Tabelle plötzlich anders aussieht.
    */
   async function doPdf(
     list: Employee[],
@@ -122,45 +105,49 @@ export function StundenzettelTab({ store }: { store: UseScheduleReturn }) {
     if (list.length === 0 || pdfBusy) return;
     startPdf();
     setPdfProgress(list.length > 1 ? `1/${list.length}` : "");
-    flushSync(() => {
-      setPdfSchedule(null);
-      setSzDates(sz?.dates);
-      setSzLabel(sz?.label);
-      setPdfList(list);
-    });
+    // Kurzer Yield, damit „Đang tạo PDF…" zuerst sichtbar wird.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     try {
-      const pages = Array.from(
-        pdfStage.current?.querySelectorAll<HTMLElement>(".stundenzettel-page") ?? [],
+      const doc = await buildStundenzettelPdf(
+        schedule,
+        list,
+        { dates: sz?.dates, periodLabel: sz?.label },
+        progress,
       );
-      finishPdf(await elementsToPdf(pages, filename, progress, { download: !inApp.inApp }), filename);
+      const blob = doc.output("blob");
+      if (!inApp.inApp) await deliver(blob, filename);
+      finishPdf(blob, filename);
     } catch (err) {
       setPdfError(errorText(err));
     } finally {
-      setPdfList(null);
       setPdfBusy(false);
       setPdfProgress("");
     }
   }
 
-  /** PDF eines Dienstplans (Monat oder Woche). Eine Woche sperrt den Monat. */
+  /**
+   * PDF des Dienstplans (Monat oder Woche) – ebenfalls gezeichnet, nicht
+   * fotografiert. Eine Woche sperrt danach den Monat.
+   */
   async function doPdfSchedule(range: ScheduleRange, filename: string) {
     if (range.dates.length === 0 || pdfBusy) return;
     startPdf();
     setPdfProgress("");
-    flushSync(() => {
-      setPdfList(null);
-      setPdfSchedule(range);
-    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     try {
-      const pages = Array.from(
-        pdfStage.current?.querySelectorAll<HTMLElement>(".stundenzettel-page") ?? [],
-      );
-      finishPdf(await elementsToPdf(pages, filename, progress, { download: !inApp.inApp }), filename);
+      const doc = buildDienstplanPdf(schedule, {
+        dates: range.dates,
+        title: range.title,
+        layout: range.layout,
+        employeeIds: range.employeeIds,
+      });
+      const blob = doc.output("blob");
+      if (!inApp.inApp) await deliver(blob, filename);
+      finishPdf(blob, filename);
       if (range.weekStart) markWeekPrinted(range.weekStart);
     } catch (err) {
       setPdfError(errorText(err));
     } finally {
-      setPdfSchedule(null);
       setPdfBusy(false);
       setPdfProgress("");
     }
@@ -427,29 +414,6 @@ export function StundenzettelTab({ store }: { store: UseScheduleReturn }) {
             </div>
           )}
 
-          {hasSplitSunday && (
-            <div className="mt-3 rounded-lg bg-blue-50 border border-blue-300 p-3 text-blue-950 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-              <div>
-                <div className="font-semibold flex items-center gap-1.5 text-blue-900">
-                  <span>Chủ nhật đang bị chia 2 ca</span>
-                </div>
-                <p className="text-xs text-blue-800 mt-0.5">
-                  Chủ nhật/ngày lễ là <b>ca liền</b> (xem mục Tài liệu). Lịch này có người bị chia ca sáng/chiều vào Chủ nhật — bấm nút bên cạnh để tạo lại.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (isLocked) unlockMonth();
-                  generate();
-                }}
-                className="whitespace-nowrap rounded bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 active:bg-blue-800 shadow"
-              >
-                Cập nhật lại lịch chuẩn ngay
-              </button>
-            </div>
-          )}
-
           {!hasSchedule && (
             <p className="mt-2 text-sm text-slate-400">
               Chưa có lịch. Sang tab „Lịch làm việc" để tạo.
@@ -538,28 +502,6 @@ export function StundenzettelTab({ store }: { store: UseScheduleReturn }) {
         )}
       </div>
 
-      {/* Sân khấu ngoài màn hình – chỉ có nội dung trong lúc tạo PDF */}
-      <div ref={pdfStage} aria-hidden="true" className="pdf-stage no-print">
-        {pdfSchedule ? (
-          <SchedulePrintPage
-            schedule={schedule}
-            dates={pdfSchedule.dates}
-            title={pdfSchedule.title}
-            layout={pdfSchedule.layout}
-            employeeIds={pdfSchedule.employeeIds}
-          />
-        ) : (
-          (pdfList ?? []).map((emp) => (
-            <StundenzettelPage
-              key={emp.id}
-              schedule={schedule}
-              employee={emp}
-              dates={szDates}
-              periodLabel={szLabel}
-            />
-          ))
-        )}
-      </div>
     </>
   );
 }

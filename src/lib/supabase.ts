@@ -17,7 +17,7 @@ import { createClient } from "@supabase/supabase-js";
  * Per VITE_STORE_ID überschreibbar, damit man lokal gegen eine Testzeile
  * arbeiten kann.
  */
-export const STORE_ID = import.meta.env.VITE_STORE_ID || "template";
+export const STORE_ID = import.meta.env.VITE_STORE_ID || "shin";
 
 // Beide Schreibweisen akzeptieren: VITE_* (selbst gesetzt) und NEXT_PUBLIC_*
 // (so legt die Vercel-Supabase-Integration die öffentlichen Schlüssel an).

@@ -60,6 +60,14 @@ export type Employee = {
    * Sechs-Tage-Regel begrenzt.
    */
   maxDaysPerWeek?: number;
+  /**
+   * Muss diese Person an FEIERTAGEN im Dienst sein?
+   *
+   * Vorgabe des Betriebs: „Những ngày lễ phải có bạn Bá Việt Nguyen trong ca".
+   * Gesetzt => der Scheduler plant sie an jedem geöffneten Feiertag ein, und
+   * die Prüfung meldet es, wenn sie doch fehlt.
+   */
+  requiredOnHolidays?: boolean;
 };
 
 export type Shift = {

@@ -9,6 +9,7 @@ import { maxConsecutiveRun } from "./consecutive";
 import { weekStartOf } from "./weeks";
 import { validPause } from "./staffing";
 import { mayWorkOn } from "./availability";
+import { publicHolidayNames } from "./holidays";
 import type { WorkHoursConfig } from "./workHours";
 
 export type ValidationError = {
@@ -47,7 +48,7 @@ export type ValidationResult = {
  * Arbeitszeitgesetzes (§ 3 ArbZG: bis zu 10 Stunden, wenn im Halbjahr auf 8
  * ausgeglichen).
  */
-const MAX_PAID_MINUTES = 9 * 60;
+const MAX_PAID_MINUTES = 8 * 60;
 const MAX_CONSECUTIVE_DAYS = 6;
 
 export function validateSchedule(
@@ -229,6 +230,26 @@ export function validateSchedule(
       maxConsecutiveDays: maxRun,
       shiftCount: empShifts.length,
     });
+  }
+
+  // Feiertagspflicht: wer requiredOnHolidays trägt, muss an jedem GEÖFFNETEN
+  // Feiertag im Dienst sein (Vorgabe des Betriebs). Ohne Datumsliste lässt
+  // sich nicht sagen, ob der Laden offen hat – dann wird nicht geprüft.
+  const openDateSet = Array.isArray(openDays) ? new Set(openDays) : null;
+  if (openDateSet) {
+    for (const [date, name] of publicHolidayNames(_year)) {
+      if (!openDateSet.has(date)) continue;
+      for (const emp of employees) {
+        if (!emp.requiredOnHolidays || !mayWorkOn(emp, date)) continue;
+        if (shifts.some((shift) => shift.employeeId === emp.id && shift.date === date)) continue;
+        errors.push({
+          employeeId: emp.id,
+          date,
+          severity: "warning",
+          message: `${emp.name}: ngày lễ ${date} (${name}) chưa có ca — quán yêu cầu phải có mặt.`,
+        });
+      }
+    }
   }
 
   // Warnungen machen den Plan nicht ungültig – sonst blockiert eine zu große

@@ -10,16 +10,19 @@ export type StaffingWindow = {
   maxStaff: number;
 };
 
+/** Ab hier läuft der Abend aus – bis dahin muss jemand im Laden bleiben. */
 export const CLOSING_START = 21 * 60 + 30;
-export const CLOSING_MIN = 3;
-export const CLOSING_MAX = 4;
+export const CLOSING_MIN = 1;
+export const CLOSING_MAX = Infinity;
+/** Ende des Mittagsblocks; auch hier bleibt jemand bis zum Schluss. */
+export const LUNCH_END = 15 * 60;
 
 /**
  * Eine Besetzungsregel: WO (Zeitspanne je Öffnungsblock) und WIE VIELE.
  *
  * minStaff/maxStaff sind der Wert eines Normaltags (Gewicht 1,0). Bei
  * scaled = true werden sie mit dem Tagesgewicht (DAY_WEIGHTS) multipliziert und
- * aufgerundet – Fr–So (1,5) tragen so automatisch das Anderthalbfache.
+ * aufgerundet – starke Tage tragen so automatisch mehr.
  *
  * Einzige Quelle für Scheduler, Độ phủ-Bericht und Tab „Tài liệu": wer die
  * Besetzung eines Ladens ändert, ändert nur diese Liste.
@@ -42,40 +45,29 @@ const clip = (from: number, to: number) => (blocks: DayBlocks): DayWindow[] =>
     .map((block) => ({ startMinutes: Math.max(from, block.startMinutes), endMinutes: Math.min(to, block.endMinutes) }))
     .filter((window) => window.endMinutes > window.startMinutes);
 
-/** Die ersten 60 Minuten eines Blocks (Aufsperren bzw. Wiederöffnen am Abend). */
-const firstHour = (block: DayWindow): DayWindow =>
-  ({ startMinutes: block.startMinutes, endMinutes: Math.min(block.startMinutes + 60, block.endMinutes) });
-
+/**
+ * Vorgabe des Betriebs (Shin):
+ *  - „Ít nhất có 1 nhân viên làm tới 15:00" und „tới 22:00" – harte Regeln,
+ *    deshalb eigene Fenster am Ende beider Blöcke.
+ *  - „1 ca khoảng 4-5 người" – als Spanne 3–7 mittags und 4–7 abends geführt:
+ *    der Monat hat rund 1.146 Vertragsstunden auf 26 offene Tage, das sind im
+ *    Schnitt gut 5 Leute im Haus. Die Verteilung über den Tag macht die
+ *    Nachfragekurve unten.
+ */
 export const STAFFING_RULES: readonly StaffingRule[] = [
   {
-    label: "Trong giờ mở cửa", when: "suốt mỗi khung mở", minStaff: 2, maxStaff: Infinity, scaled: false,
+    label: "Trong giờ mở cửa", when: "suốt mỗi khung mở", minStaff: 1, maxStaff: Infinity, scaled: false,
     windows: (blocks) => blocks.map((block) => ({ startMinutes: block.startMinutes, endMinutes: block.endMinutes })),
   },
   {
-    label: "Mở cửa", when: "60′ đầu khung sáng", minStaff: 2, maxStaff: Infinity, scaled: false,
-    windows: (blocks) => blocks.filter((block) => block.startMinutes < 16 * 60).map(firstHour),
+    label: "Chốt ca trưa", when: "14:30–15:00", minStaff: 1, maxStaff: Infinity, scaled: false,
+    windows: clip(14 * 60 + 30, LUNCH_END),
   },
+  { label: "Trưa", when: "12:00–14:00", minStaff: 3, maxStaff: 7, scaled: false, windows: clip(12 * 60, 14 * 60) },
+  { label: "Tối", when: "18:00–21:00", minStaff: 4, maxStaff: 7, scaled: false, windows: clip(18 * 60, 21 * 60) },
   {
-    label: "Cuối ca trưa", when: "30′ cuối khung trưa", minStaff: 2, maxStaff: Infinity, scaled: false,
-    windows: (blocks) => blocks.filter((block) => block.endMinutes < 18 * 60)
-      .map((block) => ({ startMinutes: block.endMinutes - 30, endMinutes: block.endMinutes })),
-  },
-  {
-    label: "Đầu ca tối", when: "60′ đầu khung tối", minStaff: 2, maxStaff: Infinity, scaled: false,
-    windows: (blocks) => blocks.filter((block) => block.startMinutes >= 16 * 60).map(firstHour),
-  },
-  // Evening rush: a floor AND a ceiling. The ceiling matters most – without it
-  // the optimizer piles everyone into 18–20 h and the morning falls to its minimum.
-  // Trần 8 (×1,5 = 12): đủ rộng để đỉnh tối cao hơn trưa; đường nhu cầu quyết định số người.
-  { label: "Tối", when: "18:00–20:00", minStaff: 4, maxStaff: 8, scaled: true, windows: clip(18 * 60, 20 * 60) },
-  {
-    label: "Trưa CN", when: "12:00–14:00 (CN/lễ)", minStaff: 4, maxStaff: 8, scaled: true,
-    weekdays: ["sunday"], windows: clip(12 * 60, 14 * 60),
-  },
-  // Đóng cửa theo hệ số: 3–4 ngày thường, 5–6 ở T6–CN (tab „Tài liệu").
-  {
-    label: "Đóng cửa", when: "21:30–đóng cửa", minStaff: CLOSING_MIN, maxStaff: CLOSING_MAX, scaled: true,
-    windows: clip(CLOSING_START, 22 * 60 + 30),
+    label: "Đóng cửa", when: "21:30–22:00", minStaff: CLOSING_MIN, maxStaff: CLOSING_MAX, scaled: false,
+    windows: clip(CLOSING_START, 22 * 60),
   },
 ];
 
@@ -106,7 +98,8 @@ export function staffingWindows(blocks: DayBlocks, weekday: WeekdayKey): Staffin
  * ngày) theo đường này thành số người mục tiêu cho từng 30 phút, rồi phạt độ
  * lệch theo bình phương – nhờ vậy số người lên xuống mượt, không dồn cục.
  *
- * CN (và ngày lễ mở cửa) có đỉnh trưa, nên cần người chuẩn bị TRƯỚC 12:00.
+ * Shin mở hai khung: trưa 11:30–15:00 và tối 17:00–22:00. Cuối tuần và ngày lễ
+ * khách ăn trưa đông hơn, nên đỉnh trưa cao hơn (cột phải).
  */
 export type DemandBand = { startMinutes: number; endMinutes: number; level: number; label: string };
 
@@ -115,52 +108,40 @@ const band = (from: string, to: string, level: number, label: string): DemandBan
   return { startMinutes: toMinutes(from), endMinutes: toMinutes(to), level, label };
 };
 
-// Mượt theo từng ô 30 phút: mỗi bước lên/xuống tối đa ~0,2, để số người mục
-// tiêu không có bậc gấp (bậc 0,8 → 1,1 → 1,5 từng làm T6 nhảy 6 → 9 → 11).
 export const DEMAND_PROFILE: { weekday: readonly DemandBand[]; sunday: readonly DemandBand[] } = {
   weekday: [
-    band("10:30", "11:00", 0.7, "Mở cửa, chuẩn bị"),
-    band("11:00", "11:30", 0.85, "Chuẩn bị trưa"),
-    band("11:30", "13:00", 1.0, "Trưa"),
-    band("13:00", "13:30", 0.9, "Cuối trưa"),
-    band("13:30", "14:30", 0.75, "Cuối trưa"),
-    band("16:30", "17:00", 0.8, "Mở ca tối"),
-    band("17:00", "17:30", 0.95, "Chuẩn bị tối"),
-    band("17:30", "18:00", 1.15, "Trước cao điểm"),
-    band("18:00", "18:30", 1.35, "Vào cao điểm"),
-    band("18:30", "19:30", 1.5, "Cao điểm tối"),
-    band("19:30", "20:00", 1.35, "Cao điểm tối"),
-    band("20:00", "20:30", 1.2, "Sau cao điểm"),
-    band("20:30", "21:00", 1.05, "Sau cao điểm"),
+    band("11:30", "12:00", 0.8, "Mở cửa, chuẩn bị"),
+    band("12:00", "13:00", 1.3, "Cao điểm trưa"),
+    band("13:00", "13:30", 1.1, "Cuối cao điểm trưa"),
+    band("13:30", "14:30", 0.9, "Cuối trưa"),
+    band("14:30", "15:00", 0.75, "Chốt ca trưa"),
+    band("17:00", "17:30", 0.85, "Mở ca tối"),
+    band("17:30", "18:00", 1.05, "Chuẩn bị tối"),
+    band("18:00", "18:30", 1.3, "Vào cao điểm"),
+    band("18:30", "20:00", 1.5, "Cao điểm tối"),
+    band("20:00", "20:30", 1.3, "Sau cao điểm"),
+    band("20:30", "21:00", 1.1, "Vãn khách"),
     band("21:00", "21:30", 0.95, "Vãn khách"),
-    band("21:30", "22:30", 0.8, "Đóng cửa"),
+    band("21:30", "22:00", 0.8, "Đóng cửa"),
   ],
-  // CN: đông nhất là buổi TRƯA – đỉnh trưa cao hơn đỉnh tối, có dốc chuẩn bị từ 10:30.
+  // T5–CN và ngày lễ: trưa đông hơn hẳn ngày thường.
   sunday: [
-    band("10:30", "11:00", 0.9, "Mở cửa, chuẩn bị"),
-    band("11:00", "11:30", 1.1, "Chuẩn bị trưa"),
-    band("11:30", "12:00", 1.3, "Trước cao điểm trưa"),
-    band("12:00", "12:30", 1.5, "Vào cao điểm trưa"),
-    band("12:30", "13:30", 1.6, "Cao điểm trưa"),
-    band("13:30", "14:00", 1.45, "Cao điểm trưa"),
-    band("14:00", "14:30", 1.2, "Sau trưa"),
-    band("14:30", "15:00", 1.0, "Chiều"),
-    band("15:00", "16:00", 0.85, "Chiều vắng"),
-    band("16:00", "16:30", 0.9, "Chiều"),
-    band("16:30", "17:00", 1.0, "Chiều"),
-    band("17:00", "17:30", 1.1, "Chuẩn bị tối"),
-    band("17:30", "18:00", 1.2, "Trước cao điểm"),
-    band("18:00", "19:30", 1.3, "Cao điểm tối"),
-    band("19:30", "20:00", 1.25, "Cao điểm tối"),
-    band("20:00", "20:30", 1.15, "Sau cao điểm"),
-    band("20:30", "21:00", 1.05, "Sau cao điểm"),
-    band("21:00", "21:30", 0.95, "Vãn khách"),
-    band("21:30", "22:30", 0.85, "Đóng cửa"),
+    band("11:30", "12:00", 1.0, "Mở cửa, chuẩn bị"),
+    band("12:00", "13:30", 1.5, "Cao điểm trưa"),
+    band("13:30", "14:30", 1.2, "Cuối trưa"),
+    band("14:30", "15:00", 0.9, "Chốt ca trưa"),
+    band("17:00", "17:30", 1.0, "Mở ca tối"),
+    band("17:30", "18:00", 1.2, "Chuẩn bị tối"),
+    band("18:00", "20:00", 1.5, "Cao điểm tối"),
+    band("20:00", "21:00", 1.2, "Sau cao điểm"),
+    band("21:00", "21:30", 1.0, "Vãn khách"),
+    band("21:30", "22:00", 0.9, "Đóng cửa"),
   ],
 };
 
 export function demandProfileOf(weekday: WeekdayKey): readonly DemandBand[] {
-  return weekday === "sunday" ? DEMAND_PROFILE.sunday : DEMAND_PROFILE.weekday;
+  // Ngày đông (T5–CN, hệ số > 1) dùng đường có đỉnh trưa cao.
+  return DAY_WEIGHTS[weekday] > 1 ? DEMAND_PROFILE.sunday : DEMAND_PROFILE.weekday;
 }
 
 /** Relative workload at a minute (1 outside all bands). */
@@ -206,8 +187,7 @@ export function coveragePoints(shifts: Shift[], from: number, to: number): numbe
 /**
  * Giờ công mục tiêu mỗi ngày, chuẩn hoá trong từng ISO-week (không mượn giữa các tuần):
  *   giờ ngày = giờ tuần × (hệ số × phút mở) ÷ Σ(hệ số × phút mở)
- * Nhân phút mở để hệ số là MẬT ĐỘ người: CN mở 11,5h không thưa hơn T6/T7 mở 10h.
- * Không truyền openMinutesOf => chỉ theo hệ số.
+ * Nhân phút mở để hệ số là MẬT ĐỘ người. Không truyền openMinutesOf => chỉ theo hệ số.
  */
 export function weightedDailyTargets(
   dates: string[],

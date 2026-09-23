@@ -154,8 +154,8 @@ export function SettingsTab({ store }: { store: UseScheduleReturn }) {
   );
   const [ovDate, setOvDate] = useState<string>("");
   const [ovMode, setOvMode] = useState<"closed" | "custom">("closed");
-  const [ovStart, setOvStart] = useState("10:30");
-  const [ovEnd, setOvEnd] = useState("16:00");
+  const [ovStart, setOvStart] = useState("11:30");
+  const [ovEnd, setOvEnd] = useState("15:00");
   const [ovNote, setOvNote] = useState("");
 
   const effectiveOvDate = ovDate || monthDates[0];
@@ -327,7 +327,7 @@ export function SettingsTab({ store }: { store: UseScheduleReturn }) {
           <div className="my-2 border-t border-slate-200" />
           <BlockRow
             label="Ngày lễ"
-            hint="Tự áp dụng cho ngày lễ Bayern"
+            hint="Tự áp dụng cho ngày lễ Baden-Württemberg"
             blocks={schedule.workHours.holiday}
             onChange={setHolidayWindow}
           />
@@ -336,7 +336,7 @@ export function SettingsTab({ store }: { store: UseScheduleReturn }) {
         {holidaysThisMonth.length > 0 && (
           <div className="mt-3 rounded bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
             <div className="font-medium mb-1">
-              Ngày lễ Bayern trong {MONTH_NAMES_VI[schedule.month - 1]} {schedule.year}:
+              Ngày lễ Baden-Württemberg trong {MONTH_NAMES_VI[schedule.month - 1]} {schedule.year}:
             </div>
             <ul className="space-y-1">
               {holidaysThisMonth.map(([iso, name]) => {

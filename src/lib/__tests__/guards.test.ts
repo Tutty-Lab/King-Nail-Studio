@@ -1,6 +1,10 @@
 // ============================================================================
 // Unterbesetzung muss sichtbar werden statt still zu passieren – egal ob sie
 // vom Scheduler kommt oder von einer Änderung im Plan von Hand.
+//
+// Shin: offen 11:30–15:00 und 17:00–22:00, abends (18:00–21:00) sollen 4–7
+// Leute da sein, mittags (12:00–14:00) 3–7, und bis 15:00 bzw. 22:00 bleibt
+// immer mindestens eine Person.
 // ============================================================================
 
 import { describe, expect, it } from "vitest";
@@ -8,39 +12,33 @@ import { analyzeSchedule } from "../analyze";
 import { DEFAULT_WORK_HOURS } from "../workHours";
 import type { Employee, Shift } from "../../types";
 
-const emp = (id: string, type: Employee["employmentType"], weeklyHours: number): Employee => ({
+const emp = (id: string): Employee => ({
   id,
   name: id,
-  employmentType: type,
-  targetMinutes: 0,
-  weeklyHours,
+  employmentType: "TEILZEIT",
+  targetMinutes: 60 * 60,
 });
 
-describe("Zu wenige Leute in der Stoßzeit", () => {
-  // 2026-08-01 ist ein Samstag: offen 10:30–14:30 und 16:30–22:30, Abendspitze
-  // 18:00–20:00. Hier steht nur EINE Person im Abendblock.
-  const employees = ["a"].map((id) => emp(id, "TEILZEIT", 30));
-  const shifts: Shift[] = [
-    {
-      id: "s0",
-      employeeId: "a",
-      date: "2026-08-01",
-      startMinutes: 16 * 60 + 30,
-      endMinutes: 22 * 60 + 30,
-      pauseMinutes: 30,
-      paidMinutes: 5 * 60 + 30,
-      shiftType: "LATE",
-      generated: true,
-    },
-  ];
+/** Abenddienst 17:00–22:00 (5 h bezahlt, keine Pause nötig). */
+const abend = (id: string, date = "2026-08-01"): Shift => ({
+  id: `shift-${id}`,
+  employeeId: id,
+  date,
+  startMinutes: 17 * 60,
+  endMinutes: 22 * 60,
+  pauseMinutes: 0,
+  paidMinutes: 5 * 60,
+  shiftType: "LATE",
+  generated: true,
+});
 
-  const analysis = analyzeSchedule({
-    year: 2026,
-    month: 8,
-    workHours: DEFAULT_WORK_HOURS,
-    employees,
-    shifts,
-  });
+const analyse = (employees: Employee[], shifts: Shift[], month = 8) =>
+  analyzeSchedule({ year: 2026, month, workHours: DEFAULT_WORK_HOURS, employees, shifts });
+
+describe("Zu wenige Leute in der Stoßzeit", () => {
+  // 2026-08-01 ist ein Samstag – ein starker Tag, und hier steht nur EINE
+  // Person im Abendblock.
+  const analysis = analyse([emp("a")], [abend("a")]);
 
   it("meldet den unterbesetzten Tag, statt ihn zu verschweigen", () => {
     const tag = analysis.peakViolations.find((d) => d.date === "2026-08-01");
@@ -49,58 +47,63 @@ describe("Zu wenige Leute in der Stoßzeit", () => {
   });
 
   it("nennt die tatsächliche Personenzahl und die geforderte", () => {
-    // Gezielt die ABENDspitze prüfen (Label "Tối"): der eine Dienst deckt zwar
-    // den Abend mit ab, steht dort aber allein.
-    const abend = analysis.peakViolations
+    const evening = analysis.peakViolations
       .find((d) => d.date === "2026-08-01")!
       .peaks.find((p) => p.label === "Tối" && !p.ok)!;
-    expect(abend.minStaff).toBe(1); // so viele stehen wirklich da
-    expect(abend.required).toBe(6);
+    expect(evening.minStaff).toBe(1); // so viele stehen wirklich da
+    expect(evening.required).toBe(4); // Vorgabe: „1 ca khoảng 4-5 người"
   });
 
-  it("accepts six people throughout a Saturday evening rush", () => {
-    const sechs = analyzeSchedule({
-      year: 2026,
-      month: 8,
-      workHours: DEFAULT_WORK_HOURS,
-      employees: Array.from({ length: 6 }, (_, index) => emp(String(index), "TEILZEIT", 30)),
-      shifts: Array.from({ length: 6 }, (_, index) => ({ ...shifts[0], id: `s${index}`, employeeId: String(index) })),
-    });
-    const tag = sechs.peakViolations.find((d) => d.date === "2026-08-01");
-    expect(tag?.peaks.find((p) => p.label === "Tối")?.ok ?? true).toBe(true);
+  it("meldet einen leeren Mittagsblock – niemand bis 15:00", () => {
+    const day = analysis.days.find((d) => d.date === "2026-08-01")!;
+    const lunchEnd = day.peaks.find((p) => p.label === "Chốt ca trưa")!;
+    expect(lunchEnd.minStaff).toBe(0);
+    expect(lunchEnd.ok).toBe(false);
   });
 
-  it("counts a concrete pause as absent during rush coverage", () => {
-    const paused = analyzeSchedule({
-      year: 2026,
-      month: 8,
-      workHours: DEFAULT_WORK_HOURS,
-      employees: Array.from({ length: 6 }, (_, index) => emp(String(index), "TEILZEIT", 30)),
-      shifts: Array.from({ length: 6 }, (_, index) => ({
-        ...shifts[0],
-        id: `pause-${index}`,
-        employeeId: String(index),
-        ...(index === 0 ? { pauseStartMinutes: 18 * 60 } : {}),
-      })),
-    });
-    const evening = paused.days.find((day) => day.date === "2026-08-01")!
-      .peaks.find((peak) => peak.label === "Tối")!;
-    expect(evening.minStaff).toBe(5);
+  it("akzeptiert vier Leute im Abendblock", () => {
+    const ids = ["a", "b", "c", "d"];
+    const report = analyse(ids.map(emp), ids.map((id) => abend(id)));
+    const day = report.days.find((d) => d.date === "2026-08-01")!;
+    expect(day.peaks.find((p) => p.label === "Tối")?.ok).toBe(true);
+    expect(day.peaks.find((p) => p.label === "Đóng cửa")?.ok).toBe(true);
+  });
+
+  it("zählt eine konkrete Pause als abwesend", () => {
+    const ids = ["a", "b", "c", "d"];
+    const report = analyse(
+      ids.map(emp),
+      ids.map((id, index) =>
+        index === 0
+          ? // 17:00–22:00 mit 30 min Pause ab 18:30: bezahlte Zeit 4,5 h.
+            { ...abend(id), pauseMinutes: 30, paidMinutes: 4 * 60 + 30, pauseStartMinutes: 18 * 60 + 30 }
+          : abend(id),
+      ),
+    );
+    const evening = report.days.find((d) => d.date === "2026-08-01")!
+      .peaks.find((p) => p.label === "Tối")!;
+    expect(evening.minStaff).toBe(3); // während der Pause fehlt eine Person
     expect(evening.ok).toBe(false);
   });
 
-  it("checks staffing when the evening block reopens at 16:30", () => {
-    const report = analyzeSchedule({
-      year: 2026,
-      month: 9,
-      workHours: DEFAULT_WORK_HOURS,
-      employees,
-      shifts: [{ ...shifts[0], date: "2026-09-01", startMinutes: 17 * 60 + 30 }],
-    });
-    const reopening = report.days.find((day) => day.date === "2026-09-01")!
-      .peaks.find((peak) => peak.label === "Đầu ca tối")!;
-    expect(reopening.startMinutes).toBe(16 * 60 + 30);
-    expect(reopening.minStaff).toBe(0);
-    expect(reopening.ok).toBe(false);
+  it("prüft auch den Mittagsblock ab 11:30", () => {
+    // Nur ein Dienst 12:00–14:00: mittags zu wenige, und um 14:45 niemand mehr.
+    const report = analyse(
+      [emp("a")],
+      [
+        {
+          ...abend("a", "2026-09-01"),
+          startMinutes: 12 * 60,
+          endMinutes: 14 * 60,
+          paidMinutes: 2 * 60,
+          shiftType: "EARLY",
+        },
+      ],
+      9,
+    );
+    const day = report.days.find((d) => d.date === "2026-09-01")!;
+    expect(day.peaks.find((p) => p.label === "Trưa")?.required).toBe(3);
+    expect(day.peaks.find((p) => p.label === "Chốt ca trưa")?.minStaff).toBe(0);
+    expect(day.peaks.find((p) => p.label === "Đóng cửa")?.minStaff).toBe(0);
   });
 });

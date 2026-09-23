@@ -1,5 +1,9 @@
 // ============================================================================
-// Beispieldaten: die heutige Besetzung von Viet Cuisine (12 Personen, Wochenverträge).
+// Beispieldaten: die heutige Besetzung von Shin (8 Personen, MONATSstunden).
+//
+// Der Betrieb gibt die Verträge in Stunden JE MONAT an (nicht je Woche):
+// 169, 173, 169, 160, 180, 86, 169 und 40,2 Stunden. Die 40,2 h sind
+// 603 Stunden auf 15 Monate umgelegt.
 // ============================================================================
 
 import type { Employee, Schedule } from "../types";
@@ -12,10 +16,10 @@ export function makeEmployee(
   employmentType: Employee["employmentType"],
   targetHours: number,
 ): Employee {
-  return { id, name, employmentType, targetMinutes: targetHours * 60 };
+  return { id, name, employmentType, targetMinutes: Math.round(targetHours * 60) };
 }
 
-/** Mitarbeiter mit WOCHENvertrag (Viet Cuisine rechnet in Wochenstunden). */
+/** Mitarbeiter mit WOCHENvertrag (bei Shin nicht im Einsatz, bleibt für die Oberfläche). */
 export function makeWeekly(
   id: string,
   name: string,
@@ -26,32 +30,25 @@ export function makeWeekly(
 }
 
 /**
- * Belegschaft laut Angabe des Betriebs (Viet Cuisine GmbH), 12 Personen, alle
- * mit WOCHENstunden. Vollzeit = 39 h/Woche.
+ * Belegschaft laut Angabe des Betriebs (Shin Restaurant), 8 Personen.
  *
- * ANNAHMEN, die der Betrieb bestätigen sollte:
- *   - Anstellungsart aus den Wochenstunden abgeleitet: 39–40 h = Vollzeit,
- *     33/35/36 h = Teilzeit, 10 h = Minijob.
- *   - Die Kraft "chỉ làm ca 6:30–14:30" ist NICHT fest einer Person zugeordnet;
- *     im Betrieb hakt man die feste Frühschicht bei der richtigen Person an
- *     (Tab Nhân viên). Hier steht sie deshalb noch bei niemandem.
- *   - Mitten im Monat startende/wechselnde Verträge (Bùi ab 7.9., Bảo ab 10.9.,
- *     Nguyệt/Đạt ab Oktober 39 h) sind hier mit ihrem SEPTEMBER-Wert erfasst;
- *     der Teilmonat wird über das Eintrittsdatum (startDate) abgebildet.
+ * Bá Việt Nguyễn muss an FEIERTAGEN im Dienst sein (ausdrückliche Vorgabe);
+ * das steht als requiredOnHolidays am Mitarbeiter und wird beim Planen
+ * erzwungen und in der Prüfung kontrolliert.
+ *
+ * ANNAHME zur Anstellungsart (der Betrieb nennt nur Stunden): ab 160 h Vollzeit,
+ * 86 h Teilzeit, 40,2 h Minijob. Das ändert nichts an der Planung, nur an der
+ * Beschriftung auf dem Stundenzettel.
  */
 export const SAMPLE_EMPLOYEES: Employee[] = [
-  makeWeekly("ma-1", "Nguyễn Kiều Hồng Nhung", "VOLLZEIT", 39),
-  makeWeekly("ma-2", "Nguyễn Tuấn Anh", "TEILZEIT", 33),
-  makeWeekly("ma-3", "Nguyễn Việt Văn", "VOLLZEIT", 40),
-  makeWeekly("ma-4", "Nguyễn Thị Tân", "VOLLZEIT", 40),
-  makeWeekly("ma-5", "Trịnh Xuân Thành", "VOLLZEIT", 40),
-  makeWeekly("ma-6", "Đào Thị Hào", "TEILZEIT", 36),
-  makeWeekly("ma-7", "Nguyễn Đức Đông", "VOLLZEIT", 39),
-  makeWeekly("ma-8", "Nguyễn Thị Khánh Huyền", "VOLLZEIT", 39),
-  makeWeekly("ma-9", "Nguyễn Thị Nguyệt", "MINIJOB", 10),
-  makeWeekly("ma-10", "Đoàn Thành Đạt", "MINIJOB", 10),
-  makeWeekly("ma-11", "Bùi Văn Vũ", "VOLLZEIT", 39),
-  makeWeekly("ma-12", "Nguyễn Hữu Bảo", "TEILZEIT", 35),
+  { ...makeEmployee("shin-1", "Ba Viet Nguyen", "VOLLZEIT", 169), requiredOnHolidays: true },
+  makeEmployee("shin-2", "Quoc Tu Tran", "VOLLZEIT", 173),
+  makeEmployee("shin-3", "Quoc Minh Tran", "VOLLZEIT", 169),
+  makeEmployee("shin-4", "Van Dang Tran", "VOLLZEIT", 160),
+  makeEmployee("shin-5", "Tuyet Trinh Tran", "VOLLZEIT", 180),
+  makeEmployee("shin-6", "Ba Nhat Nguyen", "TEILZEIT", 86),
+  makeEmployee("shin-7", "Nhu Manh Cao", "VOLLZEIT", 169),
+  makeEmployee("shin-8", "Minh Vuong Vu", "MINIJOB", 40.2),
 ];
 
 export function createSampleSchedule(): Schedule {
@@ -67,48 +64,16 @@ export function createSampleSchedule(): Schedule {
   };
 }
 
-/** Ein einzelnes ISO-Datum "yyyy-MM-dd" – für den ersten Arbeitstag (Eintritt). */
-function iso(year: number, month: number, day: number): string {
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-/**
- * Startbelegschaft, die die App beim allerersten Öffnen zeigt (September 2026),
- * genau die zwölf Personen aus der Angabe des Betriebs mit ihren Wochenstunden.
- *
- * Mitten im Monat startende Verträge tragen ihr Eintrittsdatum (startDate):
- * Tage davor sind gesperrt UND zählen nicht ins Monats-Soll, sonst würden sie
- * dauerhaft als „zu wenig geplant" gemeldet.
- *   - Bùi Văn Vũ arbeitet erst ab 7.9.
- *   - Nguyễn Hữu Bảo arbeitet erst ab 10.9.
- * Nguyễn Thị Nguyệt und Đoàn Thành Đạt stehen mit ihrem September-Wert (10 h);
- * ab Oktober trägt der Betrieb ihre 39 h ein.
- */
+/** Startbelegschaft, die die App beim allerersten Öffnen zeigt (September 2026). */
 export function createInitialSchedule(): Schedule {
-  const year = 2026;
-  const month = 9;
-  const employees: Employee[] = [
-    makeWeekly("ma-1", "Nguyễn Kiều Hồng Nhung", "VOLLZEIT", 39),
-    makeWeekly("ma-2", "Nguyễn Tuấn Anh", "TEILZEIT", 33),
-    makeWeekly("ma-3", "Nguyễn Việt Văn", "VOLLZEIT", 40),
-    makeWeekly("ma-4", "Nguyễn Thị Tân", "VOLLZEIT", 40),
-    makeWeekly("ma-5", "Trịnh Xuân Thành", "VOLLZEIT", 40),
-    makeWeekly("ma-6", "Đào Thị Hào", "TEILZEIT", 36),
-    makeWeekly("ma-7", "Nguyễn Đức Đông", "VOLLZEIT", 39),
-    makeWeekly("ma-8", "Nguyễn Thị Khánh Huyền", "VOLLZEIT", 39),
-    makeWeekly("ma-9", "Nguyễn Thị Nguyệt", "MINIJOB", 10),
-    makeWeekly("ma-10", "Đoàn Thành Đạt", "MINIJOB", 10),
-    { ...makeWeekly("ma-11", "Bùi Văn Vũ", "VOLLZEIT", 39), startDate: iso(year, month, 7) },
-    { ...makeWeekly("ma-12", "Nguyễn Hữu Bảo", "TEILZEIT", 35), startDate: iso(year, month, 10) },
-  ];
   return {
     companyName: COMPANY_NAME,
     address: COMPANY_ADDRESS,
-    year,
-    month,
+    year: 2026,
+    month: 9,
     workHours: structuredClone(DEFAULT_WORK_HOURS),
     dateOverrides: [],
-    employees,
+    employees: SAMPLE_EMPLOYEES.map((e) => ({ ...e })),
     shifts: [],
   };
 }

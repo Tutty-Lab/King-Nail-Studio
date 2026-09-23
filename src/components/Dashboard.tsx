@@ -81,7 +81,7 @@ function underQuotaReason(emp: Employee | undefined, schedule: Schedule): string
     parts.push(`giới hạn ${emp.maxDaysPerWeek} ngày/tuần`);
   }
   if (parts.length === 0) {
-    return "hợp đồng theo tuần cao hơn số ngày quán mở trong tháng — tháng này không đủ ngày để xếp đủ giờ.";
+    return "hợp đồng cao hơn số giờ quán mở trong tháng (tối đa 8 giờ công/ngày, nghỉ 1 ngày mỗi tuần) — tháng này không đủ ngày để xếp đủ giờ.";
   }
   return `do ${parts.join("; ")}.`;
 }
@@ -192,9 +192,9 @@ export function Dashboard({ store }: { store: UseScheduleReturn }) {
             {peakGaps.length > 8 && <div className="opacity-70">… và {peakGaps.length - 8} ngày nữa</div>}
           </div>
           <div className="mt-2 opacity-80">
-            → Vì sao: tổng giờ trong ngày đủ định mức, nhưng phân bố theo giờ chưa khớp khung cao điểm
-            (18–20h, trưa CN, đóng cửa). Cách xử lý: tăng định mức/thêm người cho ngày đó, hoặc chấp
-            nhận vì lịch vẫn hợp lệ.
+            → Vì sao: tổng giờ trong ngày đủ định mức, nhưng phân bố theo giờ chưa khớp khung yêu cầu
+            (trưa 12–14h 3–7 người, tối 18–21h 4–7 người, luôn có người tới 15:00 và 22:00). Cách xử lý:
+            tăng định mức/thêm người cho ngày đó, sửa tay ca, hoặc chấp nhận vì lịch vẫn hợp lệ.
           </div>
         </InfoNote>
       )}
