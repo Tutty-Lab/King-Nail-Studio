@@ -11,7 +11,7 @@ import { DEFAULT_WORK_HOURS, resolveDay } from "../workHours";
 import { publicHolidays } from "../holidays";
 import { datesOfMonth } from "../demand";
 import { monthlyTargetMinutesFor } from "../contract";
-import { createInitialSchedule } from "../sampleData";
+import { initialScheduleFor, storeById } from "../stores";
 import type { Employee } from "../../types";
 
 const openDatesOf = (year: number, month: number): string[] => {
@@ -42,10 +42,10 @@ describe("Eintritt mitten im Monat (startDate)", () => {
 
   it("verplant keine Tage vor dem Startdatum und meldet keine Fehlstunden-Warnung", () => {
     // Shin arbeitet mit Monatsstunden; zwei Personen treten mitten im Monat ein.
-    const base = createInitialSchedule();
+    const base = initialScheduleFor(storeById("shin"));
     const seed = {
       ...base,
-      employees: base.employees.map((employee, index) =>
+      employees: base.employees.map((employee: Employee, index: number) =>
         index === 1
           ? { ...employee, startDate: `${base.year}-${String(base.month).padStart(2, "0")}-07`, targetMinutes: 120 * 60 }
           : index === 2

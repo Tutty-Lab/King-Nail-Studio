@@ -14,6 +14,7 @@ import {
 import type { DayBlocks, DayWindow, WorkHoursConfig } from "../lib/workHours";
 import { publicHolidayNames } from "../lib/holidays";
 import { isoLabel } from "../lib/shiftOps";
+import { STORES } from "../lib/stores";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -142,7 +143,7 @@ function BlockRow({
 }
 
 export function SettingsTab({ store }: { store: UseScheduleReturn }) {
-  const { schedule, updateMeta, upsertOverride, removeOverride, changePassword } = store;
+  const { schedule, updateMeta, upsertOverride, removeOverride, changePassword, storeId, setStoreId } = store;
   // Checklist G: chỉ 2026–2030. Năm cũ ngoài khoảng (dữ liệu đã lưu) vẫn hiện để
   // ô chọn không trống, nhưng không chọn lại được và không tạo/in lịch được.
   const years = isScheduleYearAllowed(schedule.year) ? SCHEDULE_YEARS : [schedule.year, ...SCHEDULE_YEARS];
@@ -219,10 +220,19 @@ export function SettingsTab({ store }: { store: UseScheduleReturn }) {
         <h2 className="text-base font-semibold text-slate-900 mb-4">Cài đặt chung</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <Field label="Tên công ty / cửa hàng">
-              <div className="w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                {schedule.companyName}
-              </div>
+            <Field label="Cửa hàng">
+              {/* Mỗi quán một bộ dữ liệu riêng: nhân viên, lịch, mật khẩu. */}
+              <select
+                className={inputClass}
+                value={storeId}
+                onChange={(e) => setStoreId(e.target.value)}
+              >
+                {STORES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
 

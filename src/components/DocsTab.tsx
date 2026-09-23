@@ -14,6 +14,7 @@ import {
   type DemandBand,
 } from "../lib/staffing";
 import { DEFAULT_WORK_HOURS } from "../lib/workHours";
+import type { StoreConfig } from "../lib/stores";
 import { SHIFT_LENGTHS } from "../lib/shifts";
 import { calculatePause, minutesToTime, presenceFromPaid } from "../lib/time";
 
@@ -157,15 +158,17 @@ function StaffingRulesTable() {
   );
 }
 
-export function DocsTab() {
+export function DocsTab({ store }: { store: StoreConfig }) {
+  const holidayDuty = store.sampleEmployees().find((employee) => employee.requiredOnHolidays);
   const lunch = STAFFING_RULES.find((rule) => rule.label === "Trưa")!;
   const evening = STAFFING_RULES.find((rule) => rule.label === "Tối")!;
   return (
     <div className="max-w-3xl space-y-4">
       <div className="rounded-lg bg-slate-900 p-4 text-white sm:p-5">
-        <h1 className="text-lg font-semibold">Tài liệu — nguyên tắc xếp lịch của Shin</h1>
+        <h1 className="text-lg font-semibold">Tài liệu — nguyên tắc xếp lịch</h1>
         <p className="mt-1 text-sm text-slate-300">
-          Mô tả đúng thuật toán đang chạy. Bảng khung giờ, hệ số và đường nhu cầu bên dưới lấy thẳng từ code –
+          {store.name} · {store.address}. Hai quán chung một app, chung giờ mở và chung quy tắc; dữ liệu và
+          mật khẩu thì tách riêng. Mô tả đúng thuật toán đang chạy: bảng khung giờ, hệ số và đường nhu cầu lấy thẳng từ code –
           đổi code là trang này đổi theo. Thứ tự ưu tiên khi xung đột: <b>luật &amp; hợp đồng</b> → <b>số người
           tối thiểu</b> → <b>đường nhu cầu</b> → <b>độ dài ca ưa thích</b>.
         </p>
@@ -175,9 +178,11 @@ export function DocsTab() {
         <ul className="list-disc space-y-1 pl-5">
           <li><b>Giờ mở:</b> Thứ Hai nghỉ (trùng ngày lễ vẫn nghỉ; muốn mở thì đặt „giờ riêng" ở Cài đặt). <b>T3–CN và ngày lễ:</b> {minutesToTime(DEFAULT_WORK_HOURS.perWeekday.tuesday[0].startMinutes)}–{minutesToTime(LUNCH_END)} và {minutesToTime(DEFAULT_WORK_HOURS.perWeekday.tuesday[1].startMinutes)}–22:00. Khoảng 15:00–17:00 quán đóng, không tính giờ công.</li>
           <li><b>Luật giờ làm:</b> tối đa <b>8 giờ công/ngày</b> (mức quán tự đặt, thấp hơn luật 10h); tối đa <b>6 ngày liên tiếp</b>. Trên 6h công nghỉ <b>30′</b>, trên 8h nghỉ <b>60′</b> – giờ nghỉ có mốc cụ thể, bắt đầu sau ít nhất 1h vào ca.</li>
-          <li><b>Hợp đồng là giới hạn cứng:</b> quán ký theo <b>giờ mỗi tháng</b> (169, 173, 169, 160, 180, 86, 169 và 40,2 giờ). Không ai bị xếp vượt hợp đồng; thiếu thì báo cảnh báo vàng.</li>
+          <li><b>Hợp đồng là giới hạn cứng:</b> hai quán ký theo <b>giờ mỗi tháng</b> (xem tab Nhân viên). Không ai bị xếp vượt hợp đồng; thiếu thì báo cảnh báo vàng.</li>
           <li><b>Luôn có người tới 15:00 và tới 22:00</b> — hai khung „Chốt ca trưa" và „Đóng cửa" ở mục 3.</li>
-          <li><b>Ngày lễ phải có Bá Việt Nguyen trong ca</b> — bật ở tab Nhân viên (ô „Trực ngày lễ"), thuật toán giữ chỗ cho người đó trước rồi mới chia phần còn lại.</li>
+          {holidayDuty && (
+            <li><b>Ngày lễ phải có {holidayDuty.name} trong ca</b> — bật ở tab Nhân viên (ô „Trực ngày lễ"), thuật toán giữ chỗ cho người đó trước rồi mới chia phần còn lại.</li>
+          )}
           <li>Ca dài <b>{SHIFT_LENGTHS[0]}–{SHIFT_LENGTHS[SHIFT_LENGTHS.length - 1]} giờ công</b>, nằm gọn trong một khung mở. Một người có thể làm cả ca trưa và ca tối trong cùng ngày, miễn tổng ≤ 8 giờ.</li>
         </ul>
       </Section>
@@ -253,7 +258,7 @@ export function DocsTab() {
 
       <Section title="7. Ngày đặc biệt và kiểm tra">
         <ul className="list-disc space-y-1 pl-5">
-          <li>Ngày lễ theo <b>Baden-Württemberg</b> (Durmersheim): có Heilige Drei Könige, Fronleichnam và Allerheiligen; không có Mariä Himmelfahrt.</li>
+          <li>Ngày lễ theo <b>Baden-Württemberg</b> (Durmersheim và Filderstadt): có Heilige Drei Könige, Fronleichnam và Allerheiligen; không có Mariä Himmelfahrt.</li>
           <li>Ngày đặc biệt (override) có thể đóng cả ngày hoặc đặt khung giờ riêng; bấm <b>Tạo lịch</b> lại sau khi thêm.</li>
           <li>Sửa tay một ca vẫn phải giữ hợp đồng, tối đa 8 giờ/ngày, 6 ngày liên tiếp, khung ca và giờ nghỉ – ca sửa tay được đánh dấu <b>Đã sửa tay</b>.</li>
           <li>Báo cáo Độ phủ ghi <b>số người thực tế / yêu cầu</b> từng 30′; thiếu hoặc vượt khung hiện viền đỏ.</li>

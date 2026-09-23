@@ -1,5 +1,6 @@
 // ============================================================================
-// Die Vorgaben des Betriebs (Shin Restaurant) als Test:
+// Die Vorgaben des Betriebs (Shin und Coco) als Test – beide Läden haben
+// dieselben Öffnungszeiten und Regeln, nur andere Belegschaft:
 //   - Ruhetag Montag, offen Di–So 11:30–15:00 und 17:00–22:00
 //   - immer jemand bis 15:00 UND bis 22:00 im Dienst (hart)
 //   - eine Schicht ist höchstens 8 h bezahlt, höchstens 6 Tage am Stück
@@ -12,7 +13,8 @@ import type { Employee, Shift } from "../../types";
 import { generateSchedule } from "../scheduler";
 import { validateSchedule } from "../validation";
 import { analyzeSchedule } from "../analyze";
-import { SAMPLE_EMPLOYEES, makeEmployee } from "../sampleData";
+import { makeEmployee } from "../sampleData";
+import { STORES, initialScheduleFor, storeById } from "../stores";
 import { DEFAULT_WORK_HOURS, resolveDay } from "../workHours";
 import { publicHolidays, publicHolidayNames } from "../holidays";
 import { datesOfMonth, parseIsoDate, weekdayKeyOf } from "../demand";
@@ -21,16 +23,19 @@ import { maxConsecutiveRun } from "../consecutive";
 
 const MONTHS = [2, 8, 9, 12];
 
+/** Belegschaft je Filiale – die Regeln gelten für beide gleich. */
+const TEAMS = STORES.map((store) => [store.shortName, store.sampleEmployees()] as const);
+
 function openDatesOf(year: number, month: number): string[] {
   const holidays = publicHolidays(year);
   return datesOfMonth(year, month).filter((d) => !resolveDay(DEFAULT_WORK_HOURS, d, holidays, {}).closed);
 }
 
-function planOf(year: number, month: number, employees: Employee[] = SAMPLE_EMPLOYEES): Shift[] {
+function planOf(year: number, month: number, employees: Employee[] = storeById("shin").sampleEmployees()): Shift[] {
   return generateSchedule({ year, month, workHours: DEFAULT_WORK_HOURS, employees });
 }
 
-describe("Shin – Öffnungszeiten und Ruhetag", () => {
+describe("Öffnungszeiten und Ruhetag", () => {
   it("plant montags nie, und jeder Dienst liegt in einem Öffnungsblock", () => {
     for (const month of MONTHS) {
       const holidays = publicHolidays(2026);
@@ -47,10 +52,10 @@ describe("Shin – Öffnungszeiten und Ruhetag", () => {
   });
 });
 
-describe("Shin – harte Regeln", () => {
-  it("hält jeden Tag jemanden bis 15:00 und bis 22:00 im Dienst", () => {
+describe("Harte Regeln (beide Filialen)", () => {
+  it.each(TEAMS)("%s: hält jeden Tag jemanden bis 15:00 und bis 22:00 im Dienst", (_name, team) => {
     for (const month of MONTHS) {
-      const shifts = planOf(2026, month);
+      const shifts = planOf(2026, month, team);
       for (const date of openDatesOf(2026, month)) {
         const onDay = shifts.filter((s) => s.date === date);
         expect(onDay.some((s) => workingAt(s, 14 * 60 + 45)), `${date} 14:45`).toBe(true);
@@ -59,26 +64,26 @@ describe("Shin – harte Regeln", () => {
     }
   });
 
-  it("bleibt bei höchstens 8 bezahlten Stunden je Tag und 6 Tagen am Stück", () => {
+  it.each(TEAMS)("%s: bleibt bei höchstens 8 bezahlten Stunden je Tag und 6 Tagen am Stück", (_name, team) => {
     for (const month of MONTHS) {
-      const shifts = planOf(2026, month);
+      const shifts = planOf(2026, month, team);
       const perDay = new Map<string, number>();
       for (const s of shifts) {
         const key = `${s.employeeId}#${s.date}`;
         perDay.set(key, (perDay.get(key) ?? 0) + s.paidMinutes);
       }
       for (const [key, minutes] of perDay) expect(minutes, key).toBeLessThanOrEqual(8 * 60);
-      for (const employee of SAMPLE_EMPLOYEES) {
+      for (const employee of team) {
         const dates = new Set(shifts.filter((s) => s.employeeId === employee.id).map((s) => s.date));
         expect(maxConsecutiveRun(dates), `${employee.name} ${month}`).toBeLessThanOrEqual(6);
       }
     }
   });
 
-  it("erfüllt jeden Monatsvertrag auf die halbe Stunde genau", () => {
+  it.each(TEAMS)("%s: erfüllt jeden Monatsvertrag auf die halbe Stunde genau", (_name, team) => {
     for (const month of MONTHS) {
-      const shifts = planOf(2026, month);
-      const result = validateSchedule(SAMPLE_EMPLOYEES, shifts, 2026, openDatesOf(2026, month), DEFAULT_WORK_HOURS);
+      const shifts = planOf(2026, month, team);
+      const result = validateSchedule(team, shifts, 2026, openDatesOf(2026, month), DEFAULT_WORK_HOURS);
       expect(result.errors.filter((e) => e.severity !== "warning"), `Monat ${month}`).toEqual([]);
       for (const summary of result.summaries) {
         // 40,2 h lassen sich im 30-Minuten-Raster nicht exakt treffen.
@@ -88,7 +93,7 @@ describe("Shin – harte Regeln", () => {
   });
 });
 
-describe("Shin – Feiertage", () => {
+describe("Shin – Feiertagsdienst", () => {
   it("setzt Bá Việt Nguyen an jedem geöffneten Feiertag ein", () => {
     for (const month of [1, 4, 5, 6, 10, 11, 12]) {
       const shifts = planOf(2026, month);
@@ -117,12 +122,12 @@ describe("Shin – Feiertage", () => {
   });
 });
 
-describe("Shin – Besetzung", () => {
-  it("bleibt in den Spannen 3–7 mittags und 4–7 abends", () => {
+describe("Besetzung", () => {
+  it.each(TEAMS)("%s: bleibt in den Spannen 3–7 mittags und 4–7 abends", (_name, team) => {
     for (const month of MONTHS) {
-      const shifts = planOf(2026, month);
+      const shifts = planOf(2026, month, team);
       const analysis = analyzeSchedule({
-        year: 2026, month, workHours: DEFAULT_WORK_HOURS, employees: SAMPLE_EMPLOYEES, shifts,
+        year: 2026, month, workHours: DEFAULT_WORK_HOURS, employees: team, shifts,
       });
       expect(analysis.peakViolations.map((d) => d.date), `Monat ${month}`).toEqual([]);
     }
@@ -141,5 +146,23 @@ describe("Shin – Besetzung", () => {
     const busy = perDay([4, 5, 6, 0]); // Do, Fr, Sa, So je Tag
     const normal = perDay([2, 3]); // Di, Mi je Tag
     expect(busy / normal).toBeGreaterThan(1.2);
+  });
+});
+
+describe("Zwei Filialen", () => {
+  it("führt Shin und Coco getrennt: eigene Anschrift und eigene Belegschaft", () => {
+    const shin = initialScheduleFor(storeById("shin"));
+    const coco = initialScheduleFor(storeById("coco"));
+    expect(shin.companyName).toBe("Shin Restaurant");
+    expect(coco.companyName).toBe("Coco Restaurant");
+    expect(coco.address).toContain("Filderstadt");
+    expect(shin.employees).toHaveLength(8);
+    expect(coco.employees).toHaveLength(8);
+    // Keine Id doppelt – sonst würden sich die Pläne beider Läden vermischen.
+    const ids = [...shin.employees, ...coco.employees].map((e) => e.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    // Coco hat keine Feiertagspflicht.
+    expect(coco.employees.some((e) => e.requiredOnHolidays)).toBe(false);
+    expect(shin.employees.filter((e) => e.requiredOnHolidays)).toHaveLength(1);
   });
 });

@@ -29,13 +29,13 @@ Hai nhóm quy tắc: **(1) LUẬT** (không được vi phạm) và **(2) quy t�
 
 ## 2. Quy tắc app / quán — KHÔNG phải luật (đổi được tuỳ quán)
 
-Quán Shin (Durmersheim, Baden-Württemberg) — ngày lễ theo BW.
+Hai quán chung chủ: **Shin** (Durmersheim) và **Coco** (Filderstadt) — cùng ở Baden-Württemberg, cùng giờ mở, cùng quy tắc; dữ liệu tách riêng theo từng quán.
 
 - **Giờ mở:** T2 nghỉ; T3–CN và ngày lễ 11:30–15:00 và 17:00–22:00 (15:00–17:00 đóng cửa).
 - **Luôn có ít nhất 1 người tới 15:00 và tới 22:00** (quy tắc cứng).
 - **Mỗi ca khoảng 4–5 người**: trưa 3–7, tối 4–7 người.
 - **Ngày đông T5–CN** (hệ số 1,5) và ngày lễ được xếp nhiều giờ hơn T3–T4.
-- **Ngày lễ phải có Bá Việt Nguyen trong ca.**
+- **Shin: ngày lễ phải có Bá Việt Nguyen trong ca** (Coco không có yêu cầu này).
 - **Ca 3–8 giờ công, tối đa 8 giờ mỗi ngày** (thấp hơn mức luật 10h).
 
 > Các quy tắc này là vận hành của quán, không phải luật — có thể chỉnh theo từng
