@@ -166,3 +166,54 @@ describe("Zwei Filialen", () => {
     expect(shin.employees.filter((e) => e.requiredOnHolidays)).toHaveLength(1);
   });
 });
+
+describe("Schichtzuschnitt", () => {
+  it.each(TEAMS)("%s: jede Uhrzeit liegt auf dem 30-Minuten-Raster", (_name, team) => {
+    for (const month of MONTHS) {
+      for (const shift of planOf(2026, month, team)) {
+        expect(shift.startMinutes % 30, `${shift.date} ${shift.startMinutes}`).toBe(0);
+        expect(shift.endMinutes % 30, `${shift.date} ${shift.endMinutes}`).toBe(0);
+      }
+    }
+  });
+
+  it.each(TEAMS)("%s: ein EINZELNER Dienst am Tag ist nie kürzer als 3 h", (_name, team) => {
+    for (const month of MONTHS) {
+      const shifts = planOf(2026, month, team);
+      for (const shift of shifts) {
+        const sameDay = shifts.filter((s) => s.employeeId === shift.employeeId && s.date === shift.date);
+        // Ein geteilter Tag (mittags + abends) darf ein kürzeres Stück haben,
+        // mindestens aber 2 h; der Tag selbst bleibt über 3 h.
+        if (sameDay.length === 1) {
+          expect(shift.paidMinutes, `${shift.date} ${shift.employeeId}`).toBeGreaterThanOrEqual(180);
+        } else {
+          expect(shift.paidMinutes, `${shift.date} ${shift.employeeId}`).toBeGreaterThanOrEqual(120);
+          const day = sameDay.reduce((sum, s) => sum + s.paidMinutes, 0);
+          expect(day, `${shift.date} ${shift.employeeId}`).toBeGreaterThanOrEqual(180);
+        }
+      }
+    }
+  });
+
+  it.each(TEAMS)("%s: niemand wird über den Vertrag hinaus verplant", (_name, team) => {
+    for (const month of MONTHS) {
+      const shifts = planOf(2026, month, team);
+      const result = validateSchedule(team, shifts, 2026, openDatesOf(2026, month), DEFAULT_WORK_HOURS);
+      for (const summary of result.summaries) {
+        expect(summary.assignedMinutes, `${summary.employee.name} ${month}`).toBeLessThanOrEqual(summary.targetMinutes);
+      }
+    }
+  });
+
+  it("verschiebt einen Rest unter 3 h aus der Randwoche in die Nachbarwoche", () => {
+    // Januar 2026 beginnt mitten in der Woche ab 29.12. – dort landete früher
+    // ein 1,5-Stunden-Dienst für die kleinen Verträge.
+    const team = storeById("shin").sampleEmployees();
+    const shifts = planOf(2026, 1, team);
+    const single = shifts.filter((shift) => {
+      const sameDay = shifts.filter((s) => s.employeeId === shift.employeeId && s.date === shift.date);
+      return sameDay.length === 1 && shift.paidMinutes < 180;
+    });
+    expect(single).toEqual([]);
+  });
+});

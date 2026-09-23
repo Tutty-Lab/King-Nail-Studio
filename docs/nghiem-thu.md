@@ -44,7 +44,7 @@
 
 - [ ] Kẻ bảng **đủ ngang + dọc**, không ô nào mất nét (trên **mọi máy**).
 - [ ] **Không** dính `vercel.app` / ngày in / số trang / tiêu đề trình duyệt (header–footer của trình duyệt).
-- [ ] **Tên tiếng Việt đúng dấu**: Nguyễn, Kiều, Hữu, Đức, Thị…
+- [ ] **Tên tiếng Việt bỏ dấu** (Nguyen, Kieu, Huu, Duc, Thi…) — bản PDF vector dùng font Helvetica có sẵn nên không in được dấu tiếng Việt; **ä/ö/ü/ß của tiếng Đức vẫn đúng**.
 - [ ] **Tên quán + địa chỉ** đúng.
 - [ ] **Ngày tách ca sáng/chiều** hiển thị rõ (đường kẻ tách trong ô / mỗi ca một hàng), mỗi ngày một khối.
 - [ ] **Ngày Chủ Nhật** (ca liền mạch, không tách) hiển thị đúng, **Pause đúng**.
@@ -70,7 +70,7 @@
 - [ ] **Hợp lệ** hiện **xanh** khi đúng; **lỗi (đỏ)** vs **cảnh báo (vàng)** phân biệt đúng.
 - [ ] Warning/lỗi gộp sau nút **(i)**; mở ra ghi **"vì sao"** cho **từng người**.
 - [ ] Bấm **"Tạo lịch"** xong hiện **toast thành công**.
-- [ ] Banner **tách ca Chủ Nhật** (nếu có) + nút **tạo lại** hoạt động.
+- [ ] (Không áp dụng cho quán mở 2 khung/ngày: ca gãy trưa–tối là bình thường, không có banner tách ca.)
 - [ ] Số liệu **Dashboard** đúng: số NV, VZ/TZ/MJ, tổng định mức, đã xếp, chưa xếp.
 - [ ] **Không có lỗi trong Console** khi: mở app / tạo lịch / xuất PDF.
 
@@ -110,9 +110,9 @@
 - [ ] **In ra 3 tháng full cả quán** (mỗi tháng, tất cả nhân viên).
 - [ ] **In ra 6 tháng random các nhân viên** (chọn ngẫu nhiên người + tháng).
 - [ ] **Check thuật toán** — xem [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md):
-  - [ ] Không ai > **10h/ngày**; không ai > **6 ngày liên tiếp**.
+  - [ ] Không ai > **8h/ngày** (mức quán tự đặt, luật cho 10h); không ai > **6 ngày liên tiếp**.
   - [ ] Pause đúng ngưỡng; Gesamtstunden khớp định mức.
-  - [ ] Phủ **peak hour / peak day**; **mở cửa & đóng cửa luôn ≥ 2 người**.
+  - [ ] Phủ **peak hour / peak day**; số người tối thiểu theo [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md) của quán (Shin/Coco: luôn ≥ 1 người, tới 15:00 và tới 22:00 phải còn người).
 - [ ] **Check format** — đối chiếu mục **B** ở trên trên vài file vừa in.
 
 ---

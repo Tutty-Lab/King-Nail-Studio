@@ -183,7 +183,7 @@ export function DocsTab({ store }: { store: StoreConfig }) {
           {holidayDuty && (
             <li><b>Ngày lễ phải có {holidayDuty.name} trong ca</b> — bật ở tab Nhân viên (ô „Trực ngày lễ"), thuật toán giữ chỗ cho người đó trước rồi mới chia phần còn lại.</li>
           )}
-          <li>Ca dài <b>{SHIFT_LENGTHS[0]}–{SHIFT_LENGTHS[SHIFT_LENGTHS.length - 1]} giờ công</b>, nằm gọn trong một khung mở. Một người có thể làm cả ca trưa và ca tối trong cùng ngày, miễn tổng ≤ 8 giờ.</li>
+          <li><b>Ngày làm {SHIFT_LENGTHS[0]}–{SHIFT_LENGTHS[SHIFT_LENGTHS.length - 1]} giờ công.</b> Mỗi ca nằm gọn trong một khung mở, nên ca trưa dài nhất 3,5h (khung trưa chỉ 11:30–15:00). Một người có thể làm cả trưa lẫn tối trong ngày; khi chia hai ca như vậy, phần ngắn hơn ít nhất <b>2 giờ</b>. Ca đứng một mình không bao giờ dưới 3 giờ.</li>
         </ul>
       </Section>
 
@@ -198,7 +198,10 @@ export function DocsTab({ store }: { store: StoreConfig }) {
         <WeekdayTable />
         <ul className="list-disc space-y-1 pl-5">
           <li>Hợp đồng <b>theo tháng</b> được chia cho các tuần theo số ngày mở, rồi mới chia cho từng ngày theo hệ số.</li>
-          <li>Phần lẻ còn lại sau khi làm tròn 30 phút được <b>bù vào cuối</b>: một ca được kéo dài thêm 30′ ở chỗ ít ảnh hưởng nhất, nên hầu hết mọi người khớp đúng hợp đồng.</li>
+          <li>Hệ số 1,5 là <b>mục tiêu</b>, không phải tỷ lệ bảo đảm: tổng giờ hợp đồng là cố định và khung tối
+          chặn trên 7 người, nên đo thực tế trên dữ liệu hiện tại ngày đông nhiều hơn ngày thường khoảng
+          <b>1,4 lần</b> (≈48,5h so với ≈34,5h mỗi ngày ở Shin).</li>
+          <li>Mọi giờ đều nằm trên <b>mốc 30 phút</b>. Phần lẻ sau khi làm tròn được <b>bù vào cuối</b>: một ca dài thêm 30′ ở chỗ ít ảnh hưởng nhất. Tuần lẻ ở đầu/cuối tháng nếu chỉ còn dưới 3 giờ thì phần đó <b>dồn sang tuần kề</b>, không tạo ca lẻ 1–2 giờ.</li>
         </ul>
       </Section>
 

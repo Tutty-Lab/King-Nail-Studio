@@ -235,14 +235,19 @@ export function weeklyTargetMinutes(
     return result;
   }
 
-  const raw = openDaysByWeek.map((w) => (monthlyMin * w.openDays) / totalOpen);
+  // Alles im 30-Minuten-Raster verteilen. Sonst bekommt jemand mit 40,2 h im
+  // Monat ein Wochenbudget von 101 Minuten, und der Plan zeigt krumme Zeiten
+  // wie 20:19–22:00. Der Rest unter einer halben Stunde bleibt ungeplant und
+  // liegt damit unter der Warnschwelle der Prüfung.
+  const totalSlots = Math.floor(monthlyMin / SCHEDULE_SLOT_MINUTES + 1e-9);
+  const raw = openDaysByWeek.map((w) => (totalSlots * w.openDays) / totalOpen);
   const floors = raw.map((x) => Math.floor(x));
-  let rest = Math.round(monthlyMin) - floors.reduce((a, b) => a + b, 0);
+  let rest = totalSlots - floors.reduce((a, b) => a + b, 0);
   const order = raw
     .map((x, i) => ({ i, frac: x - Math.floor(x) }))
-    .sort((a, b) => b.frac - a.frac);
-  const minutes = [...floors];
-  for (let k = 0; k < order.length && rest > 0; k++, rest--) minutes[order[k].i] += 1;
-  openDaysByWeek.forEach((w, i) => result.set(w.weekStart, minutes[i]));
+    .sort((a, b) => b.frac - a.frac || a.i - b.i);
+  const slots = [...floors];
+  for (let k = 0; k < order.length && rest > 0; k++, rest--) slots[order[k].i] += 1;
+  openDaysByWeek.forEach((w, i) => result.set(w.weekStart, slots[i] * SCHEDULE_SLOT_MINUTES));
   return result;
 }

@@ -36,7 +36,8 @@ Hai quán chung chủ: **Shin** (Durmersheim) và **Coco** (Filderstadt) — cù
 - **Mỗi ca khoảng 4–5 người**: trưa 3–7, tối 4–7 người.
 - **Ngày đông T5–CN** (hệ số 1,5) và ngày lễ được xếp nhiều giờ hơn T3–T4.
 - **Shin: ngày lễ phải có Bá Việt Nguyen trong ca** (Coco không có yêu cầu này).
-- **Ca 3–8 giờ công, tối đa 8 giờ mỗi ngày** (thấp hơn mức luật 10h).
+- **Ngày làm 3–8 giờ công** (thấp hơn mức luật 10h). Ca trưa dài nhất 3,5h vì khung trưa chỉ 11:30–15:00; ai làm cả trưa lẫn tối thì phần ngắn hơn ít nhất 2h. Ca đứng một mình không dưới 3h.
+- **Mọi giờ nằm trên mốc 30 phút**; phần lẻ của tuần đầu/cuối tháng dồn sang tuần kề thay vì tạo ca 1–2 giờ.
 
 > Các quy tắc này là vận hành của quán, không phải luật — có thể chỉnh theo từng
 > cửa hàng (số người tối thiểu, khung giờ cao điểm, số ngày mở…). Khi đổi, nhớ

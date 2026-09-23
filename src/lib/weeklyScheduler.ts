@@ -520,6 +520,29 @@ export function generateWeeklySchedule(input: WeeklyInput, existing: Shift[] = [
     }));
     return [employee.id, weeklyTargetMinutes(employee.targetMinutes, empWeekInfo)] as const;
   }));
+  // Ein Wochenbudget unter der Mindestschichtlänge (Monatsrand: ein oder zwei
+  // offene Tage) ergäbe einen 1–2-Stunden-Dienst. Bei einem MONATSvertrag darf
+  // dieser Rest in die Nachbarwoche wandern; ein WOCHENvertrag bleibt hart an
+  // seiner Woche.
+  for (const employee of employees) {
+    if (employee.weeklyHours != null) continue;
+    const weekly = budgets.get(employee.id)!;
+    const order = [...weekly.keys()].sort();
+    for (let index = 0; index < order.length; index++) {
+      const week = order[index];
+      const minutes = weekly.get(week) ?? 0;
+      if (minutes <= 0 || minutes >= MIN_SHIFT) continue;
+      const room = (other: string) =>
+        (byWeek.get(other)?.length ?? 0) * MAX_PAID - (weekly.get(other) ?? 0);
+      const neighbour = [order[index - 1], order[index + 1]]
+        .filter((other): other is string => Boolean(other) && room(other) >= minutes)
+        .sort((a, b) => room(b) - room(a))[0];
+      if (!neighbour) continue;
+      weekly.set(neighbour, (weekly.get(neighbour) ?? 0) + minutes);
+      weekly.set(week, 0);
+    }
+  }
+
   // Tab „Tài liệu": giờ ngày = giờ tuần × (hệ số × phút mở) ÷ Σ(hệ số × phút mở),
   // chuẩn hoá trong từng ISO-week; ngày lễ tính như Chủ nhật (effectiveWeekdayKey).
   const dailyTargets = new Map<string, number>();
