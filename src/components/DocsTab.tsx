@@ -158,20 +158,36 @@ function StaffingRulesTable() {
   );
 }
 
-export function DocsTab({ store }: { store: StoreConfig }) {
-  const holidayDuty = store.sampleEmployees().find((employee) => employee.requiredOnHolidays);
+export function DocsTab({ stores }: { stores: StoreConfig[] }) {
+  // Cả hai quán dùng chung giờ mở và chung quy tắc, nên tài liệu là MỘT trang.
+  // Chỗ khác nhau duy nhất: danh sách nhân viên và ai phải trực ngày lễ.
+  const duty = stores
+    .map((store) => ({ store, employee: store.sampleEmployees().find((e) => e.requiredOnHolidays) }))
+    .find((entry) => entry.employee);
+  const holidayDuty = duty?.employee;
   const lunch = STAFFING_RULES.find((rule) => rule.label === "Trưa")!;
   const evening = STAFFING_RULES.find((rule) => rule.label === "Tối")!;
   return (
     <div className="max-w-3xl space-y-4">
       <div className="rounded-lg bg-slate-900 p-4 text-white sm:p-5">
         <h1 className="text-lg font-semibold">Tài liệu — nguyên tắc xếp lịch</h1>
-        <p className="mt-1 text-sm text-slate-300">
-          Hai quán chung một app, chung giờ mở và chung quy tắc; dữ liệu và mật khẩu tách riêng. Mọi tab đều
-          hiện <b>cả hai quán</b> (không có nút chuyển quán); tháng/năm chọn chung ở thanh trên cùng, và Bảng
-          chấm công xuất <b>một file PDF</b> gồm trang của cả hai. Mô tả đúng thuật toán đang chạy: bảng khung giờ, hệ số và đường nhu cầu lấy thẳng từ code –
-          đổi code là trang này đổi theo. Thứ tự ưu tiên khi xung đột: <b>luật &amp; hợp đồng</b> → <b>số người
-          tối thiểu</b> → <b>đường nhu cầu</b> → <b>độ dài ca ưa thích</b>.
+<ul className="mt-2 space-y-0.5 text-sm text-slate-300">
+          {stores.map((store) => (
+            <li key={store.id}>
+              <b className="text-white">{store.name}</b> · {store.address}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-sm text-slate-300">
+          Trang này áp cho <b>cả hai quán</b>: giờ mở, hệ số ngày và quy tắc số người giống hệt nhau. Khác nhau
+          chỉ ở danh sách nhân viên và ở việc quán nào phải có người trực ngày lễ. Mọi tab đều hiện cả hai quán
+          (không có nút chuyển quán); tháng/năm chọn chung ở thanh trên cùng, và Bảng chấm công xuất <b>một
+          file PDF</b> gồm trang của cả hai.
+        </p>
+        <p className="mt-2 text-sm text-slate-300">
+          Mô tả đúng thuật toán đang chạy: bảng khung giờ, hệ số và đường nhu cầu lấy thẳng từ code – đổi code
+          là trang này đổi theo. Thứ tự ưu tiên khi xung đột: <b>luật &amp; hợp đồng</b> → <b>số người tối
+          thiểu</b> → <b>đường nhu cầu</b> → <b>độ dài ca ưa thích</b>.
         </p>
       </div>
 
@@ -182,7 +198,7 @@ export function DocsTab({ store }: { store: StoreConfig }) {
           <li><b>Hợp đồng là giới hạn cứng:</b> hai quán ký theo <b>giờ mỗi tháng</b> (xem tab Nhân viên). Không ai bị xếp vượt hợp đồng; thiếu thì báo cảnh báo vàng.</li>
           <li><b>Luôn có người tới 15:00 và tới 22:00</b> — hai khung „Chốt ca trưa" và „Đóng cửa" ở mục 3.</li>
           {holidayDuty && (
-            <li><b>Ngày lễ phải có {holidayDuty.name} trong ca</b> — bật ở tab Nhân viên (ô „Trực ngày lễ"), thuật toán giữ chỗ cho người đó trước rồi mới chia phần còn lại.</li>
+            <li><b>{duty?.store.shortName}: ngày lễ phải có {holidayDuty.name} trong ca</b> — bật ở tab Nhân viên (ô „Trực ngày lễ"), thuật toán giữ chỗ cho người đó trước rồi mới chia phần còn lại. Quán còn lại không có yêu cầu này.</li>
           )}
           <li><b>Ngày làm {SHIFT_LENGTHS[0]}–{SHIFT_LENGTHS[SHIFT_LENGTHS.length - 1]} giờ công.</b> Mỗi ca nằm gọn trong một khung mở, nên ca trưa dài nhất 3,5h (khung trưa chỉ 11:30–15:00). Một người có thể làm cả trưa lẫn tối trong ngày; khi chia hai ca như vậy, phần ngắn hơn ít nhất <b>2 giờ</b>. Ca đứng một mình không bao giờ dưới 3 giờ.</li>
         </ul>
