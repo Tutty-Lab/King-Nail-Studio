@@ -167,8 +167,9 @@ export function DocsTab({ store }: { store: StoreConfig }) {
       <div className="rounded-lg bg-slate-900 p-4 text-white sm:p-5">
         <h1 className="text-lg font-semibold">Tài liệu — nguyên tắc xếp lịch</h1>
         <p className="mt-1 text-sm text-slate-300">
-          {store.name} · {store.address}. Hai quán chung một app, chung giờ mở và chung quy tắc; dữ liệu và
-          mật khẩu thì tách riêng. Mô tả đúng thuật toán đang chạy: bảng khung giờ, hệ số và đường nhu cầu lấy thẳng từ code –
+          Hai quán chung một app, chung giờ mở và chung quy tắc; dữ liệu và mật khẩu tách riêng. Mọi tab đều
+          hiện <b>cả hai quán</b> (không có nút chuyển quán); tháng/năm chọn chung ở thanh trên cùng, và Bảng
+          chấm công xuất <b>một file PDF</b> gồm trang của cả hai. Mô tả đúng thuật toán đang chạy: bảng khung giờ, hệ số và đường nhu cầu lấy thẳng từ code –
           đổi code là trang này đổi theo. Thứ tự ưu tiên khi xung đột: <b>luật &amp; hợp đồng</b> → <b>số người
           tối thiểu</b> → <b>đường nhu cầu</b> → <b>độ dài ca ưa thích</b>.
         </p>

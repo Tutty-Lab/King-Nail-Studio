@@ -447,15 +447,39 @@ export async function buildStundenzettelPdf(
   opts: { dates?: string[]; periodLabel?: string } = {},
   onProgress?: (current: number, total: number) => void,
 ): Promise<jsPDF> {
-  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
-  const dates = opts.dates ?? datesOfMonth(schedule.year, schedule.month);
-  const periodLabel = opts.periodLabel ?? monthLabelDe(schedule.year, schedule.month);
+  return buildStundenzettelPdfFor([{ schedule, employees }], opts, onProgress);
+}
 
-  for (let i = 0; i < employees.length; i++) {
-    if (i > 0) doc.addPage();
-    drawStundenzettel(doc, schedule, employees[i], dates, periodLabel);
-    onProgress?.(i + 1, employees.length);
-    if (employees.length > 1) await new Promise((r) => setTimeout(r, 0));
+/** Eine Filiale mit den Mitarbeitern, die in die PDF sollen. */
+export type StundenzettelJob = { schedule: Schedule; employees: Employee[] };
+
+/**
+ * Stundenzettel-PDF über MEHRERE Filialen: alle Seiten landen in EINER Datei,
+ * in der Reihenfolge der Filialen. Der Betrieb druckt beide Läden zusammen aus,
+ * deshalb ist ein einziges Dokument richtig – nicht zwei Downloads.
+ */
+export async function buildStundenzettelPdfFor(
+  jobs: StundenzettelJob[],
+  opts: { dates?: string[]; periodLabel?: string } = {},
+  onProgress?: (current: number, total: number) => void,
+): Promise<jsPDF> {
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+  const total = jobs.reduce((sum, job) => sum + job.employees.length, 0);
+  let done = 0;
+
+  for (const job of jobs) {
+    const dates = opts.dates ?? datesOfMonth(job.schedule.year, job.schedule.month);
+    const periodLabel = opts.periodLabel ?? monthLabelDe(job.schedule.year, job.schedule.month);
+    for (const employee of job.employees) {
+      if (done > 0) doc.addPage();
+      drawStundenzettel(doc, job.schedule, employee, dates, periodLabel);
+      // Zähler NICHT im optionalen Aufruf hochzählen: ohne onProgress würde
+      // onProgress?.(++done) gar nicht ausgewertet – dann lägen alle Seiten
+      // übereinander auf Seite 1.
+      done += 1;
+      onProgress?.(done, total);
+      if (total > 1) await new Promise((r) => setTimeout(r, 0));
+    }
   }
 
   return doc;
@@ -597,6 +621,45 @@ export function buildDienstplanPdf(
   schedule: Schedule,
   opts: { dates: string[]; title: string; layout: SchedulePdfLayout; employeeIds?: string[] },
 ): jsPDF {
+  const doc = newDienstplanDoc(opts.layout);
+  drawDienstplan(doc, schedule, opts);
+  return doc;
+}
+
+/** Eine Filiale mit dem Zeitraum, der auf ihre Dienstplan-Seite soll. */
+export type DienstplanJob = {
+  schedule: Schedule;
+  dates: string[];
+  title: string;
+  employeeIds?: string[];
+};
+
+/** Dienstplan-PDF über MEHRERE Filialen: je Filiale eine Seite, eine Datei. */
+export function buildDienstplanPdfFor(jobs: DienstplanJob[], layout: SchedulePdfLayout): jsPDF {
+  const doc = newDienstplanDoc(layout);
+  jobs.forEach((job, index) => {
+    if (index > 0) doc.addPage();
+    drawDienstplan(doc, job.schedule, { ...job, layout });
+  });
+  return doc;
+}
+
+/** Leeres Dokument im passenden Format: der Monat liegt quer, die Woche hoch. */
+function newDienstplanDoc(layout: SchedulePdfLayout): jsPDF {
+  return new jsPDF({
+    unit: "mm",
+    format: "a4",
+    orientation: layout === "byDate" ? "landscape" : "portrait",
+    compress: true,
+  });
+}
+
+/** Zeichnet EINEN Dienstplan auf die aktuelle Seite. */
+function drawDienstplan(
+  doc: jsPDF,
+  schedule: Schedule,
+  opts: { dates: string[]; title: string; layout: SchedulePdfLayout; employeeIds?: string[] },
+): void {
   const employees =
     opts.employeeIds && opts.employeeIds.length
       ? schedule.employees.filter((e) => opts.employeeIds!.includes(e.id))
@@ -609,13 +672,6 @@ export function buildDienstplanPdf(
   const overrides = Object.fromEntries(schedule.dateOverrides.map((o) => [o.date, o]));
   const closedOn = (date: string) => isDayClosed(schedule.workHours, date, holidays, overrides);
 
-  const landscape = opts.layout === "byDate";
-  const doc = new jsPDF({
-    unit: "mm",
-    format: "a4",
-    orientation: landscape ? "landscape" : "portrait",
-    compress: true,
-  });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const startY = drawHeader(doc, "Dienstplan", schedule, opts.title);
@@ -692,7 +748,6 @@ export function buildDienstplanPdf(
   }
 
   drawSignatures(doc, ["Unterschrift Arbeitgeber", "Datum"], pageH - 14);
-  return doc;
 }
 
 export type ShareResult = "shared" | "cancelled" | "unsupported" | "failed";

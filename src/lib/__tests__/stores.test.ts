@@ -217,3 +217,33 @@ describe("Schichtzuschnitt", () => {
     expect(single).toEqual([]);
   });
 });
+
+describe("PDF cho cả hai quán", () => {
+  it("gộp đúng số trang: mỗi nhân viên một trang, hai quán một file", async () => {
+    const { buildStundenzettelPdfFor, buildDienstplanPdfFor } = await import("../pdf");
+    const jobs = STORES.map((store) => {
+      const schedule = initialScheduleFor(store);
+      schedule.shifts = generateSchedule({
+        year: schedule.year,
+        month: schedule.month,
+        workHours: schedule.workHours,
+        employees: schedule.employees,
+      });
+      return { store, schedule };
+    });
+
+    const sz = await buildStundenzettelPdfFor(
+      jobs.map((job) => ({ schedule: job.schedule, employees: job.schedule.employees })),
+    );
+    const employees = jobs.reduce((sum, job) => sum + job.schedule.employees.length, 0);
+    // Früher lagen ohne onProgress alle Seiten übereinander auf Seite 1.
+    expect(sz.getNumberOfPages()).toBe(employees);
+
+    const dates = datesOfMonth(jobs[0].schedule.year, jobs[0].schedule.month);
+    const plan = buildDienstplanPdfFor(
+      jobs.map((job) => ({ schedule: job.schedule, dates, title: job.store.shortName })),
+      "byDate",
+    );
+    expect(plan.getNumberOfPages()).toBe(jobs.length);
+  });
+});

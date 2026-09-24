@@ -1,9 +1,12 @@
 # Dienstplan & Stundenzettel — Shin & Coco
 
 Eine App für zwei Restaurants desselben Betreibers in Baden-Württemberg. Die
-Oberfläche ist auf Vietnamesisch; umgeschaltet wird im Tab „Cài đặt" (Feld
-„Cửa hàng") oder in der Kopfzeile. Jede Filiale hat eigene Mitarbeiter, eigene
-Pläne, ein eigenes Passwort und eine eigene Zeile in Supabase.
+Oberfläche ist auf Vietnamesisch. Es gibt KEIN Umschalten zwischen den Filialen:
+jeder Tab zeigt beide Läden untereinander, jeder mit eigener Überschrift. Monat
+und Jahr stehen oben in der Kopfzeile und gelten für beide. Jede Filiale hat
+eigene Mitarbeiter, eigene Pläne, ein eigenes Passwort und eine eigene Zeile in
+Supabase; „Tạo lịch làm việc" erzeugt beide Pläne, und die Bảng chấm công gibt
+EINE PDF mit den Seiten beider Läden aus.
 
 | Filiale | `store_id` | Anschrift |
 |---|---|---|
