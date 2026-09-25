@@ -1,12 +1,12 @@
 // ============================================================================
-// Beispieldaten beider Filialen. Beide rechnen in MONATSstunden (nicht je Woche).
+// Startbelegschaft beider Studios. Beide rechnen in MONATSstunden (nicht je Woche).
 //
-// Shin: 169, 173, 169, 160, 180, 86, 169 und 40,2 Stunden (40,2 h = 603 h auf
-// 15 Monate umgelegt). Coco: 173, 173, 173, 156, 130, 152, 39 und 43 Stunden.
+// Schloss Arkaden: 58, 150, 130, 72, 55, 43 und 150 Stunden (zusammen 658 h).
+// Papenstieg: 160, 64, 86, 43 und 86 Stunden (zusammen 439 h).
 // ============================================================================
 
 import type { Employee, Schedule } from "../types";
-import { DEFAULT_WORK_HOURS } from "./workHours";
+import { ARKADEN_WORK_HOURS } from "./workHours";
 
 export function makeEmployee(
   id: string,
@@ -28,87 +28,57 @@ export function makeWeekly(
 }
 
 /**
- * Shin Restaurant, Hans-Thoma-Str. 2, 76448 Durmersheim.
+ * Cơ sở 1 – King Nail Schloss Arkaden, Platz am Ritterbrunnen 1, 38100 Braunschweig.
  *
- * Bá Việt Nguyễn muss an FEIERTAGEN im Dienst sein (ausdrückliche Vorgabe).
- * ANNAHME zur Anstellungsart (der Betrieb nennt nur Stunden): ab 160 h Vollzeit,
- * 86 h Teilzeit, 40,2 h Minijob – das ändert nur die Beschriftung auf dem
- * Stundenzettel, nicht die Planung.
+ * ANNAHME zur Anstellungsart (der Betrieb nennt nur Stunden): ab 130 h
+ * Vollzeit, 55–86 h Teilzeit, 43 h Minijob – das ändert nur die Beschriftung
+ * auf dem Stundenzettel, nicht die Planung.
+ *
+ * Die Vollzeitkräfte (150/150/130 h) bekommen höchstens FÜNF Arbeitstage je
+ * Woche. Weil die Tagesgewichte jede Woche gleich sind, wiederholt sich ihr
+ * Rhythmus dadurch von Woche zu Woche – „lịch cố định" wie gewünscht –, und es
+ * bleiben Tage frei, an denen die Teilzeitkräfte die Hauptzeit verstärken.
  */
-export function shinEmployees(): Employee[] {
+export function arkadenEmployees(): Employee[] {
   return [
-    {
-      // Arbeitet zusätzlich im Nieu (Minijob 35 h). Damit dort überhaupt Tage
-      // frei bleiben, plant Shin ihn auf höchstens 5 Tage je Woche – sonst
-      // belegt der Vollzeitvertrag alle sechs Öffnungstage.
-      ...makeEmployee("shin-1", "Ba Viet Nguyen", "VOLLZEIT", 169),
-      requiredOnHolidays: true,
-      personKey: "ba-viet-nguyen",
-      maxDaysPerWeek: 5,
-    },
-    makeEmployee("shin-2", "Quoc Tu Tran", "VOLLZEIT", 173),
-    makeEmployee("shin-3", "Quoc Minh Tran", "VOLLZEIT", 169),
-    makeEmployee("shin-4", "Van Dang Tran", "VOLLZEIT", 160),
-    makeEmployee("shin-5", "Tuyet Trinh Tran", "VOLLZEIT", 180),
-    makeEmployee("shin-6", "Ba Nhat Nguyen", "TEILZEIT", 86),
-    makeEmployee("shin-7", "Nhu Manh Cao", "VOLLZEIT", 169),
-    makeEmployee("shin-8", "Minh Vuong Vu", "MINIJOB", 40.2),
+    { ...makeEmployee("arkaden-1", "Nguyen Xuan Manh", "VOLLZEIT", 150), maxDaysPerWeek: 5 },
+    { ...makeEmployee("arkaden-2", "Pham Van Nha", "VOLLZEIT", 150), maxDaysPerWeek: 5 },
+    { ...makeEmployee("arkaden-3", "Nguyen Quang Huy", "VOLLZEIT", 130), maxDaysPerWeek: 5 },
+    makeEmployee("arkaden-4", "Nguyen Thi Thu Hang", "TEILZEIT", 72),
+    makeEmployee("arkaden-5", "Do Thuy Hang", "TEILZEIT", 58),
+    makeEmployee("arkaden-6", "Nguyen Thi Khanh Huyen", "TEILZEIT", 55),
+    makeEmployee("arkaden-7", "Dinh Thi Duyen", "MINIJOB", 43),
   ];
 }
 
 /**
- * Coco Restaurant, Bernhäuser Hauptstraße 17, 70794 Filderstadt.
+ * Cơ sở 2 – King Nail Papenstieg, Papenstieg 8, 38100 Braunschweig.
  *
- * ANNAHME zur Anstellungsart wie oben: ab 130 h Vollzeit, 152 h Vollzeit,
- * 39/43 h Minijob. „152 tiếng × 18,93" ist der Stundenlohn – er gehört nicht in
- * die Planung und steht deshalb nicht in den Daten.
+ * Gleiche Annahme zur Anstellungsart. Pham Duy Thang (160 h) ist die feste
+ * Vollzeitkraft des Ladens und arbeitet höchstens fünf Tage je Woche.
  */
-export function cocoEmployees(): Employee[] {
+export function papenstiegEmployees(): Employee[] {
   return [
-    makeEmployee("coco-1", "Nguyen Thu Van", "VOLLZEIT", 173),
-    makeEmployee("coco-2", "Nguyen Thi Minh Tam", "VOLLZEIT", 173),
-    makeEmployee("coco-3", "Duy Phuong Do", "VOLLZEIT", 173),
-    makeEmployee("coco-4", "Dinh Trong Huy", "VOLLZEIT", 156),
-    makeEmployee("coco-5", "Ba Anh Nguyen", "VOLLZEIT", 130),
-    makeEmployee("coco-6", "Viet Trung Nguyen", "VOLLZEIT", 152),
-    makeEmployee("coco-7", "Thi Huong Nguyen", "MINIJOB", 39),
-    makeEmployee("coco-8", "Viet An Bui", "MINIJOB", 43),
-  ];
-}
-
-/**
- * Nieu 37 Restaurant, Radgasse 9, 73430 Aalen.
- *
- * Kleineres Team (6 Personen) und schwächere Umsätze als Shin/Coco: normal
- * 1.000–1.500 €, starke Tage 3.000 €. Stark sind hier FREITAG bis SONNTAG.
- *
- * Bá Việt Nguyễn arbeitet zusätzlich Vollzeit im Shin – über personKey erkennt
- * der Planer dieselbe Person und legt ihm hier keinen Tag hin, an dem er schon
- * im Shin steht.
- */
-export function nieuEmployees(): Employee[] {
-  return [
-    makeEmployee("nieu-1", "Cong Danh Bui", "VOLLZEIT", 151.8),
-    makeEmployee("nieu-2", "Ngoc So Nguyen", "VOLLZEIT", 169),
-    makeEmployee("nieu-3", "Van Hai Nguyen", "VOLLZEIT", 130),
-    makeEmployee("nieu-4", "Ba Nam Nguyen", "VOLLZEIT", 169),
-    makeEmployee("nieu-5", "Xuan Linh Trinh", "VOLLZEIT", 169),
-    { ...makeEmployee("nieu-6", "Ba Viet Nguyen", "MINIJOB", 35), personKey: "ba-viet-nguyen" },
+    { ...makeEmployee("papen-1", "Pham Duy Thang", "VOLLZEIT", 160), maxDaysPerWeek: 5 },
+    makeEmployee("papen-2", "Bui Thi Huyen", "TEILZEIT", 86),
+    makeEmployee("papen-3", "Nguyen Trong Hanh", "TEILZEIT", 86),
+    makeEmployee("papen-4", "Nguyen Tien Long", "TEILZEIT", 64),
+    makeEmployee("papen-5", "Tang Thi Nhung", "MINIJOB", 43),
   ];
 }
 
 /** Belegschaft der Standard-Filiale – für Tests und Altaufrufe. */
-export const SAMPLE_EMPLOYEES: Employee[] = shinEmployees();
+export const SAMPLE_EMPLOYEES: Employee[] = arkadenEmployees();
 
 export function createSampleSchedule(): Schedule {
   return {
-    companyName: "Shin Restaurant",
-    address: "Hans-Thoma-Str. 2, 76448 Durmersheim",
+    companyName: "King Nail Schloss Arkaden",
+    address: "Platz am Ritterbrunnen 1, 38100 Braunschweig",
     year: 2026,
-    month: 8, // August
-    workHours: structuredClone(DEFAULT_WORK_HOURS),
+    month: 9,
+    workHours: structuredClone(ARKADEN_WORK_HOURS),
     dateOverrides: [],
-    employees: shinEmployees(),
+    employees: arkadenEmployees(),
     shifts: [],
   };
 }

@@ -1,11 +1,12 @@
 // ============================================================================
-// Die Vorgaben des Betriebs für ALLE Filialen (Shin, Coco, Nieu 37):
-//   - Ruhetag Montag, offen Di–So 11:30–15:00 und 17:00–22:00
-//   - immer jemand bis 15:00 UND bis 22:00 im Dienst (hart)
+// Die Vorgaben des Betriebs für BEIDE Studios (Schloss Arkaden, Papenstieg):
+//   - Sonntag und gesetzliche Feiertage geschlossen
+//   - jede Filiale hat ihre EIGENEN Öffnungszeiten, und die müssen von der
+//     ersten bis zur letzten Minute besetzt sein (nie null Personen)
+//   - in der Hauptzeit mehr Leute, am stärksten freitags und samstags
 //   - höchstens 8 h bezahlt am Tag, höchstens 6 Tage am Stück
 //   - jeder Monatsvertrag wird auf die halbe Stunde genau erfüllt
-//   - Shin: an Feiertagen ist Bá Việt Nguyen im Dienst
-//   - wer in zwei Läden arbeitet, steht nie am selben Tag in beiden
+//   - die Vollzeitkräfte haben einen festen Wochenrhythmus (max. 5 Tage)
 // ============================================================================
 
 import { describe, expect, it } from "vitest";
@@ -13,21 +14,21 @@ import type { Employee, Shift } from "../../types";
 import { generateSchedule } from "../scheduler";
 import { validateSchedule } from "../validation";
 import { analyzeSchedule } from "../analyze";
-import { makeEmployee } from "../sampleData";
 import { STORES, initialScheduleFor, storeById, type StoreConfig } from "../stores";
-import { DEFAULT_WORK_HOURS, resolveDay } from "../workHours";
-import { publicHolidays, publicHolidayNames } from "../holidays";
+import { resolveDay } from "../workHours";
+import { publicHolidays } from "../holidays";
 import { datesOfMonth, parseIsoDate, weekdayKeyOf } from "../demand";
-import { workingAt } from "../staffing";
+import { staffingWindows, workingAt } from "../staffing";
 import { maxConsecutiveRun } from "../consecutive";
+import { weekStartOf } from "../weeks";
 
-const MONTHS = [2, 8, 9, 12];
-/** Jede Filiale mit ihrer Belegschaft – die Regeln gelten für alle gleich. */
+const MONTHS = [2, 6, 9, 12];
+/** Jede Filiale mit ihrer Belegschaft – die Regeln gelten für beide gleich. */
 const TEAMS = STORES.map((store) => [store.shortName, store] as const);
 
-function openDatesOf(year: number, month: number): string[] {
+function openDatesOf(year: number, month: number, store: StoreConfig): string[] {
   const holidays = publicHolidays(year);
-  return datesOfMonth(year, month).filter((d) => !resolveDay(DEFAULT_WORK_HOURS, d, holidays, {}).closed);
+  return datesOfMonth(year, month).filter((d) => !resolveDay(store.workHours, d, holidays, {}).closed);
 }
 
 function teamOf(store: StoreConfig): Employee[] {
@@ -38,7 +39,7 @@ function planOf(year: number, month: number, store: StoreConfig, employees = tea
   return generateSchedule({
     year,
     month,
-    workHours: DEFAULT_WORK_HOURS,
+    workHours: store.workHours,
     employees,
     rules: store.staffingRules,
     weights: store.dayWeights,
@@ -46,39 +47,29 @@ function planOf(year: number, month: number, store: StoreConfig, employees = tea
   });
 }
 
-/** Plant alle Filialen nacheinander – genau wie „Tạo lịch làm việc" in der App. */
-function planAll(year: number, month: number): Map<string, Shift[]> {
-  const busy = new Map<string, Set<string>>();
-  const plans = new Map<string, Shift[]>();
-  for (const store of STORES) {
-    const employees = teamOf(store);
-    const blocked: Record<string, string[]> = {};
-    for (const employee of employees) {
-      const dates = employee.personKey ? busy.get(employee.personKey) : undefined;
-      if (dates?.size) blocked[employee.id] = [...dates];
-    }
-    const shifts = generateSchedule({
-      year, month, workHours: DEFAULT_WORK_HOURS, employees,
-      rules: store.staffingRules, weights: store.dayWeights, blockedDays: blocked, storeTag: store.id,
-    });
-    plans.set(store.id, shifts);
-    for (const employee of employees) {
-      if (!employee.personKey) continue;
-      const dates = busy.get(employee.personKey) ?? new Set<string>();
-      for (const shift of shifts) if (shift.employeeId === employee.id) dates.add(shift.date);
-      busy.set(employee.personKey, dates);
-    }
-  }
-  return plans;
+/** Wie viele Leute sind zu dieser Minute im Studio? */
+const staffAt = (shifts: Shift[], minute: number): number =>
+  new Set(shifts.filter((s) => workingAt(s, minute)).map((s) => s.employeeId)).size;
+
+/**
+ * Eine ISO-Woche liegt GANZ im Monat, wenn alle sechs Öffnungstage im Monat
+ * liegen und kein Feiertag dazwischen ausfällt. Nur solche Wochen dürfen
+ * miteinander verglichen werden (Randwochen haben weniger Stunden).
+ */
+function fullWeeksOf(dates: string[]): Map<string, string[]> {
+  const byWeek = new Map<string, string[]>();
+  for (const date of dates) byWeek.set(weekStartOf(date), [...(byWeek.get(weekStartOf(date)) ?? []), date]);
+  return new Map([...byWeek].filter(([, days]) => days.length === 6));
 }
 
-describe("Öffnungszeiten und Ruhetag", () => {
-  it.each(TEAMS)("%s: plant montags nie, und jeder Dienst liegt in einem Öffnungsblock", (_name, store) => {
+describe("Öffnungszeiten je Filiale", () => {
+  it.each(TEAMS)("%s: plant nie sonntags, nie an Feiertagen, und jeder Dienst liegt im Öffnungsfenster", (_name, store) => {
     const holidays = publicHolidays(2026);
     for (const month of MONTHS) {
       for (const shift of planOf(2026, month, store)) {
-        const day = resolveDay(DEFAULT_WORK_HOURS, shift.date, holidays, {});
-        expect(weekdayKeyOf(parseIsoDate(shift.date)), shift.date).not.toBe("monday");
+        const day = resolveDay(store.workHours, shift.date, holidays, {});
+        expect(weekdayKeyOf(parseIsoDate(shift.date)), shift.date).not.toBe("sunday");
+        expect(holidays.has(shift.date), shift.date).toBe(false);
         expect(day.closed, shift.date).toBe(false);
         expect(
           day.blocks.some((b) => shift.startMinutes >= b.startMinutes && shift.endMinutes <= b.endMinutes),
@@ -87,16 +78,35 @@ describe("Öffnungszeiten und Ruhetag", () => {
       }
     }
   });
+
+  it("die beiden Studios haben unterschiedliche Zeiten: Arkaden 09:30–20:00, Papenstieg 09:00–19:00 (Sa 18:00)", () => {
+    const arkaden = storeById("arkaden").workHours;
+    expect(arkaden.perWeekday.tuesday).toEqual([{ startMinutes: 9 * 60 + 30, endMinutes: 20 * 60 }]);
+    expect(arkaden.perWeekday.saturday).toEqual([{ startMinutes: 9 * 60 + 30, endMinutes: 20 * 60 }]);
+    const papen = storeById("papenstieg").workHours;
+    expect(papen.perWeekday.tuesday).toEqual([{ startMinutes: 9 * 60, endMinutes: 19 * 60 }]);
+    expect(papen.perWeekday.saturday).toEqual([{ startMinutes: 9 * 60, endMinutes: 18 * 60 }]);
+    for (const store of STORES) {
+      expect(store.workHours.closedWeekdays.sunday).toBe(true);
+      expect(store.workHours.closedWeekdays.monday).toBe(false);
+      expect(store.workHours.holidayClosed).toBe(true);
+    }
+  });
 });
 
-describe("Harte Regeln (alle Filialen)", () => {
-  it.each(TEAMS)("%s: hält jeden Tag jemanden bis 15:00 und bis 22:00 im Dienst", (_name, store) => {
+describe("Harte Regeln (beide Filialen)", () => {
+  it.each(TEAMS)("%s: es ist von der ersten bis zur letzten Minute jemand im Studio", (_name, store) => {
+    const holidays = publicHolidays(2026);
     for (const month of MONTHS) {
       const shifts = planOf(2026, month, store);
-      for (const date of openDatesOf(2026, month)) {
+      for (const date of openDatesOf(2026, month, store)) {
         const onDay = shifts.filter((s) => s.date === date);
-        expect(onDay.some((s) => workingAt(s, 14 * 60 + 45)), `${date} 14:45`).toBe(true);
-        expect(onDay.some((s) => workingAt(s, 21 * 60 + 45)), `${date} 21:45`).toBe(true);
+        const day = resolveDay(store.workHours, date, holidays, {});
+        for (const block of day.blocks) {
+          for (let m = block.startMinutes; m < block.endMinutes; m += 30) {
+            expect(staffAt(onDay, m), `${date} ${m}`).toBeGreaterThanOrEqual(1);
+          }
+        }
       }
     }
   });
@@ -121,114 +131,137 @@ describe("Harte Regeln (alle Filialen)", () => {
     for (const month of MONTHS) {
       const shifts = planOf(2026, month, store);
       const team = teamOf(store);
-      const result = validateSchedule(team, shifts, 2026, openDatesOf(2026, month), DEFAULT_WORK_HOURS);
+      const result = validateSchedule(team, shifts, 2026, openDatesOf(2026, month, store), store.workHours);
       expect(result.errors.filter((e) => e.severity !== "warning"), `Monat ${month}`).toEqual([]);
       for (const summary of result.summaries) {
-        // Ohne den zweiten Job ist jeder Vertrag erfüllbar; 40,2 h liegen nicht
-        // auf dem 30-Minuten-Raster, deshalb bis 75 Minuten Spielraum.
-        expect(Math.abs(summary.diffMinutes), `${summary.employee.name} ${month}`).toBeLessThanOrEqual(75);
+        expect(Math.abs(summary.diffMinutes), `${summary.employee.name} ${month}`).toBeLessThanOrEqual(30);
+        expect(summary.assignedMinutes, `${summary.employee.name} ${month}`).toBeLessThanOrEqual(summary.targetMinutes);
       }
     }
   });
 });
 
-describe("Shin – Feiertagsdienst", () => {
-  it("setzt Bá Việt Nguyen an jedem geöffneten Feiertag ein", () => {
-    const store = storeById("shin");
-    for (const month of [1, 4, 5, 6, 10, 11, 12]) {
-      const shifts = planOf(2026, month, store);
-      const open = new Set(openDatesOf(2026, month));
-      for (const [date, label] of publicHolidayNames(2026)) {
-        if (!open.has(date)) continue;
-        expect(shifts.some((s) => s.date === date && s.employeeId === "shin-1"), `${date} ${label}`).toBe(true);
-      }
-    }
-  });
-
-  it("meldet es als Warnung, wenn er an einem Feiertag fehlt", () => {
-    const employees = [{ ...makeEmployee("x", "Ba Viet Nguyen", "VOLLZEIT", 20), requiredOnHolidays: true }];
-    // 03.10.2026 (Tag der Deutschen Einheit) ist ein Samstag – der Laden hat offen.
-    const shifts: Shift[] = [
-      {
-        id: "s1", employeeId: "x", date: "2026-10-02", startMinutes: 17 * 60, endMinutes: 21 * 60,
-        pauseMinutes: 0, paidMinutes: 4 * 60, shiftType: "LATE", generated: false,
-      },
-    ];
-    const result = validateSchedule(employees, shifts, 2026, openDatesOf(2026, 10), DEFAULT_WORK_HOURS);
-    const warning = result.errors.find((e) => e.date === "2026-10-03" && e.severity === "warning");
-    expect(warning?.message).toContain("ngày lễ");
-    expect(result.errors.filter((e) => e.severity !== "warning")).toEqual([]);
-  });
-});
-
-describe("Besetzung", () => {
-  it.each(TEAMS)("%s: hält die Spannen der eigenen Filiale ein", (_name, store) => {
+describe("Hauptzeit", () => {
+  /**
+   * Die Untergrenzen der Hauptzeit (Arkaden 2 bzw. samstags 3, Papenstieg 2 an
+   * Fr/Sa) werden an allen Tagen eingehalten – AUSSER in einer angebrochenen
+   * Woche am Monatsrand: dort gehört nur ein Teil der Woche zum Monat, das
+   * Stundenbudget des Tages ist entsprechend klein und reicht rechnerisch nicht
+   * immer für die zweite Person über die volle Spanne. Der Bericht „Độ phủ"
+   * zeigt solche Stellen rot an.
+   */
+  it.each(TEAMS)("%s: hält die Untergrenzen – Lücken höchstens in der Randwoche", (_name, store) => {
+    const holidays = publicHolidays(2026);
     for (const month of MONTHS) {
       const shifts = planOf(2026, month, store);
-      const analysis = analyzeSchedule({
-        year: 2026, month, workHours: DEFAULT_WORK_HOURS, employees: teamOf(store), shifts,
-        rules: store.staffingRules, weights: store.dayWeights,
-      });
-      expect(analysis.peakViolations.map((d) => d.date), `Monat ${month}`).toEqual([]);
+      const open = openDatesOf(2026, month, store);
+      const voll = fullWeeksOf(open);
+      for (const date of open) {
+        const onDay = shifts.filter((s) => s.date === date);
+        const day = resolveDay(store.workHours, date, holidays, {});
+        const weekday = weekdayKeyOf(parseIsoDate(date));
+        const randwoche = !voll.has(weekStartOf(date));
+        for (const w of staffingWindows(day.blocks, weekday, store.staffingRules)) {
+          if (w.minStaff < 2) continue; // die Abdeckung selbst prüft der Test oben
+          for (let m = w.startMinutes; m < w.endMinutes; m += 30) {
+            const staff = staffAt(onDay, m);
+            if (randwoche) expect(staff, `${date} ${m}`).toBeGreaterThanOrEqual(1);
+            else expect(staff, `${date} ${m} ${w.label}`).toBeGreaterThanOrEqual(w.minStaff);
+          }
+        }
+      }
     }
   });
 
-  it.each(TEAMS)("%s: legt an den starken Tagen der Filiale mehr Stunden", (_name, store) => {
+  it.each(TEAMS)("%s: überschreitet nie die Obergrenze einer Spanne", (_name, store) => {
+    for (const month of MONTHS) {
+      const analysis = analyzeSchedule({
+        year: 2026, month, workHours: store.workHours, employees: teamOf(store),
+        shifts: planOf(2026, month, store), rules: store.staffingRules, weights: store.dayWeights,
+      });
+      for (const day of analysis.days) {
+        for (const peak of day.peaks) {
+          expect(peak.maxStaff, `${day.date} ${peak.label}`).toBeLessThanOrEqual(peak.allowed);
+        }
+      }
+    }
+  });
+
+  it.each(TEAMS)("%s: mittags/nachmittags stehen mehr Leute als direkt nach dem Öffnen", (_name, store) => {
     const shifts = planOf(2026, 9, store);
-    const perDay = (busy: boolean) => {
+    const open = openDatesOf(2026, 9, store);
+    const avg = (minute: number) =>
+      open.reduce((sum, date) => sum + staffAt(shifts.filter((s) => s.date === date), minute), 0) / open.length;
+    expect(avg(16 * 60)).toBeGreaterThan(avg(10 * 60));
+    expect(avg(17 * 60 + 30)).toBeGreaterThan(avg(10 * 60));
+  });
+});
+
+describe("Tagesgewichte", () => {
+  it("Freitag und Samstag sind die stärksten Tage, Dienstag der schwächste", () => {
+    for (const store of STORES) {
+      expect(store.dayWeights.friday).toBe(2);
+      expect(store.dayWeights.saturday).toBe(2);
+      expect(store.dayWeights.tuesday).toBe(1);
+      expect(store.dayWeights.monday).toBe(1.2);
+      expect(store.dayWeights.wednesday).toBe(1.2);
+      expect(store.dayWeights.thursday).toBe(1.2);
+    }
+  });
+
+  it.each(TEAMS)("%s: legt freitags und samstags deutlich mehr Stunden als dienstags", (_name, store) => {
+    const shifts = planOf(2026, 9, store);
+    const hoursOn = (weekdays: string[]) => {
       const days = new Map<string, number>();
       for (const s of shifts) {
-        const weekday = weekdayKeyOf(parseIsoDate(s.date));
-        if ((store.dayWeights[weekday] > 1) !== busy) continue;
+        if (!weekdays.includes(weekdayKeyOf(parseIsoDate(s.date)))) continue;
         days.set(s.date, (days.get(s.date) ?? 0) + s.paidMinutes);
       }
       return [...days.values()].reduce((sum, m) => sum + m, 0) / days.size;
     };
-    expect(perDay(true) / perDay(false)).toBeGreaterThan(1.2);
+    expect(hoursOn(["friday", "saturday"]) / hoursOn(["tuesday"])).toBeGreaterThan(1.4);
   });
 });
 
-describe("Drei Filialen", () => {
+describe("Feste Wochen für die Vollzeitkräfte", () => {
+  it.each(TEAMS)("%s: höchstens 5 Arbeitstage je Woche, und der Rhythmus wiederholt sich", (_name, store) => {
+    const shifts = planOf(2026, 9, store);
+    const voll = fullWeeksOf(openDatesOf(2026, 9, store));
+    for (const employee of teamOf(store).filter((e) => e.maxDaysPerWeek)) {
+      const muster = new Set<string>();
+      for (const [week, days] of voll) {
+        const worked = days.filter((date) => shifts.some((s) => s.employeeId === employee.id && s.date === date));
+        expect(worked.length, `${employee.name} ${week}`).toBeLessThanOrEqual(employee.maxDaysPerWeek!);
+        muster.add(worked.map((date) => weekdayKeyOf(parseIsoDate(date))).join(","));
+      }
+      // Alle vollen Wochen des Monats haben dieselben Arbeitstage.
+      expect([...muster], employee.name).toHaveLength(1);
+    }
+  });
+});
+
+describe("Zwei Filialen", () => {
   it("führt jede Filiale getrennt: eigene Anschrift, eigene Belegschaft, eigene Ids", () => {
-    expect(STORES.map((s) => s.id)).toEqual(["shin", "coco", "nieu"]);
+    expect(STORES.map((s) => s.id)).toEqual(["arkaden", "papenstieg"]);
     const all = STORES.flatMap((store) => initialScheduleFor(store).employees);
     expect(new Set(all.map((e) => e.id)).size).toBe(all.length);
-    expect(initialScheduleFor(storeById("nieu")).address).toContain("Aalen");
-    expect(initialScheduleFor(storeById("nieu")).employees).toHaveLength(6);
+    expect(initialScheduleFor(storeById("arkaden")).address).toContain("Ritterbrunnen");
+    expect(initialScheduleFor(storeById("papenstieg")).address).toContain("Papenstieg");
+    expect(initialScheduleFor(storeById("arkaden")).employees).toHaveLength(7);
+    expect(initialScheduleFor(storeById("papenstieg")).employees).toHaveLength(5);
   });
 
-  it("Nieu ist erst ab Freitag stark, Shin und Coco schon ab Donnerstag", () => {
-    expect(storeById("nieu").dayWeights.thursday).toBe(1);
-    expect(storeById("shin").dayWeights.thursday).toBe(1.5);
-    // Kleineres Team: die Abendspanne liegt eine Person tiefer.
-    const evening = (store: StoreConfig) => store.staffingRules.find((r) => r.label === "Tối")!;
-    expect(evening(storeById("nieu")).minStaff).toBe(3);
-    expect(evening(storeById("shin")).minStaff).toBe(4);
+  it("die Vertragsstunden stimmen mit der Angabe des Betriebs überein", () => {
+    const hours = (store: StoreConfig) =>
+      store.sampleEmployees().map((e) => e.targetMinutes / 60).sort((a, b) => a - b);
+    expect(hours(storeById("arkaden"))).toEqual([43, 55, 58, 72, 130, 150, 150]);
+    expect(hours(storeById("papenstieg"))).toEqual([43, 64, 86, 86, 160]);
   });
 
-  it("wer in zwei Läden arbeitet, steht nie am selben Tag in beiden", () => {
-    for (const month of [1, 9]) {
-      const plans = planAll(2026, month);
-      const perPerson = new Map<string, Map<string, Set<string>>>();
-      for (const store of STORES) {
-        for (const employee of teamOf(store)) {
-          if (!employee.personKey) continue;
-          const byDate = perPerson.get(employee.personKey) ?? new Map<string, Set<string>>();
-          for (const shift of plans.get(store.id)!.filter((s) => s.employeeId === employee.id)) {
-            byDate.set(shift.date, (byDate.get(shift.date) ?? new Set()).add(store.id));
-          }
-          perPerson.set(employee.personKey, byDate);
-        }
-      }
-      expect(perPerson.size).toBeGreaterThan(0);
-      for (const [person, byDate] of perPerson) {
-        for (const [date, shops] of byDate) {
-          expect([...shops], `${person} ${date}`).toHaveLength(1);
-        }
-        // Auch über beide Läden zusammen gelten 6 Tage am Stück.
-        expect(maxConsecutiveRun(new Set(byDate.keys())), person).toBeLessThanOrEqual(6);
-      }
-    }
+  it("niemand arbeitet in beiden Studios (keine Doppelbelegung nötig)", () => {
+    const names = STORES.flatMap((store) => store.sampleEmployees().map((e) => e.name));
+    expect(new Set(names).size).toBe(names.length);
+    expect(STORES.flatMap((s) => s.sampleEmployees()).filter((e) => e.personKey)).toEqual([]);
   });
 });
 
@@ -242,42 +275,22 @@ describe("Schichtzuschnitt", () => {
     }
   });
 
-  it.each(TEAMS)("%s: ein EINZELNER Dienst am Tag ist nie kürzer als 3 h", (_name, store) => {
+  it.each(TEAMS)("%s: ein Dienst ist nie kürzer als 3 h, und niemand hat zwei Dienste am Tag", (_name, store) => {
     for (const month of MONTHS) {
       const shifts = planOf(2026, month, store);
       for (const shift of shifts) {
         const sameDay = shifts.filter((s) => s.employeeId === shift.employeeId && s.date === shift.date);
-        if (sameDay.length === 1) {
-          expect(shift.paidMinutes, `${shift.date} ${shift.employeeId}`).toBeGreaterThanOrEqual(180);
-        } else {
-          // Ein geteilter Tag (mittags + abends) darf ein kürzeres Stück haben,
-          // mindestens aber 2 h; der Tag selbst bleibt über 3 h.
-          expect(shift.paidMinutes, `${shift.date} ${shift.employeeId}`).toBeGreaterThanOrEqual(120);
-          const day = sameDay.reduce((sum, s) => sum + s.paidMinutes, 0);
-          expect(day, `${shift.date} ${shift.employeeId}`).toBeGreaterThanOrEqual(180);
-        }
-      }
-    }
-  });
-
-  it.each(TEAMS)("%s: niemand wird über den Vertrag hinaus verplant", (_name, store) => {
-    for (const month of MONTHS) {
-      const shifts = planOf(2026, month, store);
-      const result = validateSchedule(teamOf(store), shifts, 2026, openDatesOf(2026, month), DEFAULT_WORK_HOURS);
-      for (const summary of result.summaries) {
-        expect(summary.assignedMinutes, `${summary.employee.name} ${month}`).toBeLessThanOrEqual(summary.targetMinutes);
+        // Das Studio hat durchgehend offen – es gibt keinen geteilten Tag.
+        expect(sameDay, `${shift.date} ${shift.employeeId}`).toHaveLength(1);
+        expect(shift.paidMinutes, `${shift.date} ${shift.employeeId}`).toBeGreaterThanOrEqual(180);
       }
     }
   });
 
   it("verschiebt einen Rest unter 3 h aus der Randwoche in die Nachbarwoche", () => {
-    // Januar 2026 beginnt mitten in der Woche ab 29.12. – dort landete früher
-    // ein 1,5-Stunden-Dienst für die kleinen Verträge.
-    const shifts = planOf(2026, 1, storeById("shin"));
-    const single = shifts.filter((shift) => {
-      const sameDay = shifts.filter((s) => s.employeeId === shift.employeeId && s.date === shift.date);
-      return sameDay.length === 1 && shift.paidMinutes < 180;
-    });
-    expect(single).toEqual([]);
+    for (const store of STORES) {
+      const shifts = planOf(2026, 1, store);
+      expect(shifts.filter((shift) => shift.paidMinutes < 180), store.shortName).toEqual([]);
+    }
   });
 });

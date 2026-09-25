@@ -135,7 +135,7 @@ export function GenerateScheduleDialog({
           {isLocked && (
             <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Lịch <b>{current}</b> đã in &amp; khóa. Tạo lịch sẽ <b>mở khóa và xóa dấu các tuần đã in</b> — bản đã
-              treo ở quán sẽ không còn khớp.
+              treo ở tiệm sẽ không còn khớp.
             </div>
           )}
           {hasShifts && !sameMonth && (

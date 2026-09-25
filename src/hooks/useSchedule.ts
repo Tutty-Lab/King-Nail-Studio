@@ -15,7 +15,6 @@ import { MIN_PASSWORD_LENGTH, hashPassword, passwordMatches } from "../lib/auth"
 import { isRemoteConfigured, loadRemote, saveRemote, type RemoteStatus } from "../lib/remote";
 import { createManualShift, updateShiftTimes } from "../lib/shiftOps";
 import {
-  DEFAULT_WORK_HOURS,
   normalizeWorkHours,
   resolveDay,
   type DateOverride,
@@ -42,7 +41,7 @@ function emptySchedule(store: StoreConfig): Schedule {
     address: store.address,
     year: now.getFullYear(),
     month: now.getMonth() + 1,
-    workHours: structuredClone(DEFAULT_WORK_HOURS),
+    workHours: structuredClone(store.workHours),
     dateOverrides: [],
     employees: [],
     shifts: [],
@@ -66,7 +65,7 @@ function normalizeSchedule(raw: Schedule | undefined, store: StoreConfig): Sched
     address: store.address,
     year: raw.year ?? base.year,
     month: raw.month ?? base.month,
-    workHours: normalizeWorkHours(raw.workHours),
+    workHours: normalizeWorkHours(raw.workHours, store.workHours),
     dateOverrides: Array.isArray(raw.dateOverrides) ? raw.dateOverrides : [],
     employees: raw.employees ?? [],
     shifts: raw.shifts ?? [],

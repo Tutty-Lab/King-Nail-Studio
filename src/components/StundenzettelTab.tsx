@@ -331,7 +331,7 @@ export function StundenzettelTab({ stores }: { stores: UseScheduleReturn[] }) {
                 value={who}
                 onChange={(e) => setWho(e.target.value)}
               >
-                <option value="all">Tất cả (cả quán)</option>
+                <option value="all">Tất cả (cả tiệm)</option>
                 {stores.flatMap((s) =>
                   s.schedule.employees.map((e) => (
                     <option key={`${s.storeId}:${e.id}`} value={`${s.storeId}:${e.id}`}>
@@ -455,8 +455,8 @@ export function StundenzettelTab({ stores }: { stores: UseScheduleReturn[] }) {
 
           <p className="mt-2 text-xs text-slate-500">
             <b>Bảng chấm công (Stundenzettel)</b> theo mẫu tiếng Đức để nộp — một tờ mỗi người, chọn
-            cả tháng hoặc từng tuần. <b>Lịch làm việc</b> là lịch treo ở quán (cả tháng hoặc từng
-            tuần, cho cả quán hoặc một người). <b>Xuất lịch một tuần sẽ khóa lịch tháng</b> để bản
+            cả tháng hoặc từng tuần. <b>Lịch làm việc</b> là lịch treo ở tiệm (cả tháng hoặc từng
+            tuần, cho cả tiệm hoặc một người). <b>Xuất lịch một tuần sẽ khóa lịch tháng</b> để bản
             đã xuất luôn khớp với hệ thống. Trên máy tính, Chrome và Safari, PDF tải thẳng về máy; mở
             app từ link trong Zalo/Messenger/Facebook thì bấm <b>Lưu / Chia sẻ PDF</b> sau khi tạo.
           </p>
@@ -490,7 +490,7 @@ export function StundenzettelTab({ stores }: { stores: UseScheduleReturn[] }) {
               ) : (
                 <div className="mt-2 rounded border border-amber-300 bg-white px-3 py-2">
                   <div className="text-amber-900">
-                    Mở khóa lịch tháng này? Bản đã in ở quán sẽ không còn khớp với hệ thống. Sau
+                    Mở khóa lịch tháng này? Bản đã in ở tiệm sẽ không còn khớp với hệ thống. Sau
                     khi sửa, hãy in lại tuần đó và thay bản cũ.
                   </div>
                   <div className="mt-2 flex gap-2">

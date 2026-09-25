@@ -2,5 +2,5 @@
 // Feste Firmendaten (không cho sửa trong giao diện). Ändern nur hier im Code.
 // ============================================================================
 
-export const COMPANY_NAME = "Shin Restaurant";
-export const COMPANY_ADDRESS = "Hans-Thoma-Str. 2, 76448 Durmersheim";
+export const COMPANY_NAME = "King Nail Schloss Arkaden";
+export const COMPANY_ADDRESS = "Platz am Ritterbrunnen 1, 38100 Braunschweig";

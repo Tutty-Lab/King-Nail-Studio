@@ -16,20 +16,19 @@ export type WeekdayKey =
 /**
  * Nachfrage-Gewichte je Wochentag (keine Mitarbeiterzahlen!).
  *
- * Angabe des Betriebs: „Thường từ T5 đến Chủ nhật khách tốt hơn" – Umsatz an
- * normalen Tagen rund 2.000 EUR, an starken Tagen 3.500–4.000 EUR, an
- * Feiertagen 4.500–5.000 EUR. Donnerstag bis Sonntag stehen deshalb auf 1,5,
- * Dienstag und Mittwoch auf 1,0. Feiertage zählen wie Sonntag. Montag ist
- * Ruhetag.
+ * Angabe des Betriebs für beide Studios: Montag 1,2 · Dienstag 1,0 ·
+ * Mittwoch 1,2 · Donnerstag 1,2 · FREITAG 2,0 · SAMSTAG 2,0. Freitag und
+ * Samstag sind mit Abstand die stärksten Tage, Dienstag ist der ruhigste.
+ * Sonntag ist geschlossen; an gesetzlichen Feiertagen bleibt ebenfalls zu.
  */
 export const DAY_WEIGHTS: Record<WeekdayKey, number> = {
-  monday: 1.0, // Ruhetag (Gewicht nur relevant, falls doch geöffnet)
+  monday: 1.2,
   tuesday: 1.0,
-  wednesday: 1.0,
-  thursday: 1.5,
-  friday: 1.5,
-  saturday: 1.5,
-  sunday: 1.5,
+  wednesday: 1.2,
+  thursday: 1.2,
+  friday: 2.0,
+  saturday: 2.0,
+  sunday: 1.0, // geschlossen (Gewicht nur relevant, falls doch geöffnet)
 };
 
 /** date-fns getDay(): 0=So ... 6=Sa  ->  WeekdayKey. */

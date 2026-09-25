@@ -8,7 +8,8 @@ import { effectiveWeekdayKey, resolveDay, type DayBlocks, type DayWindow, type O
 import { publicHolidays } from "./holidays";
 import { weekStartOf } from "./weeks";
 import {
-  CLOSING_START,
+  PEAK_END,
+  PEAK_START,
   STAFFING_RULES,
   slotTargets,
   staffingWindows,
@@ -110,11 +111,11 @@ function makeShift(
   const pauseMinutes = calculatePause(paidMinutes);
   const endMinutes = startMinutes + paidMinutes + pauseMinutes;
   const weekday = effectiveWeekday ?? dayOf(date);
-  // First guess: quietest part of the demand curve, never the closing window.
+  // First guess: quietest part of the demand curve, never the peak window.
   // improveCoverage later moves pauses by the REAL headcount of the day.
   const pauseStartMinutes = pauseMinutes > 0 ? pauseStartCandidates(startMinutes, endMinutes, pauseMinutes).sort((a, b) => {
     const score = (start: number) => Array.from({ length: pauseMinutes / SLOT }, (_, index) => start + index * SLOT)
-      .reduce((sum, minute) => sum + workloadAt(minute, weekday, ctx.weights) + (minute >= CLOSING_START ? 100 : 0), 0);
+      .reduce((sum, minute) => sum + workloadAt(minute, weekday, ctx.weights) + (minute >= PEAK_START && minute < PEAK_END ? 100 : 0), 0);
     return score(a) - score(b) || ((a / SLOT + hash(employeeId)) % 7) - ((b / SLOT + hash(employeeId)) % 7);
   })[0] : undefined;
   return {

@@ -246,7 +246,7 @@ export function validateSchedule(
           employeeId: emp.id,
           date,
           severity: "warning",
-          message: `${emp.name}: ngày lễ ${date} (${name}) chưa có ca — quán yêu cầu phải có mặt.`,
+          message: `${emp.name}: ngày lễ ${date} (${name}) chưa có ca — tiệm yêu cầu phải có mặt.`,
         });
       }
     }

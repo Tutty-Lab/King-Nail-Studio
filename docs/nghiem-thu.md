@@ -1,7 +1,7 @@
 # Checklist nghiệm thu app (A–G)
 
-> Điều kiện nghiệm thu của chủ quán. Tick đủ mới được giao.
-> Quán: __________________   Bản build: __________________   Người test: __________________   Ngày: __________
+> Điều kiện nghiệm thu của chủ tiệm. Tick đủ mới được giao.
+> Tiệm: __________________   Bản build: __________________   Người test: __________________   Ngày: __________
 
 ---
 
@@ -29,7 +29,7 @@
 ### A.2 Các tình huống xuất
 
 - [ ] **Lần đầu mở / mạng chậm** (font chưa cache) — PDF vẫn **có kẻ bảng**, chữ **không bị serif** (không rớt về Times).
-- [ ] Xuất **"cả quán"** (nhiều người → nhiều trang): có **tiến độ X/N**, **không treo**, **đủ số trang**, mọi trang **có kẻ bảng**.
+- [ ] Xuất **"cả tiệm"** (nhiều người → nhiều trang): có **tiến độ X/N**, **không treo**, **đủ số trang**, mọi trang **có kẻ bảng**.
 - [ ] Xuất **một người** → đúng **1 trang**, **có kẻ bảng**.
 - [ ] Xuất **Stundenzettel — cả tháng** → có kẻ bảng.
 - [ ] Xuất **Stundenzettel — từng tuần** → có kẻ bảng.
@@ -45,7 +45,7 @@
 - [ ] Kẻ bảng **đủ ngang + dọc**, không ô nào mất nét (trên **mọi máy**).
 - [ ] **Không** dính `vercel.app` / ngày in / số trang / tiêu đề trình duyệt (header–footer của trình duyệt).
 - [ ] **Tên tiếng Việt bỏ dấu** (Nguyen, Kieu, Huu, Duc, Thi…) — bản PDF vector dùng font Helvetica có sẵn nên không in được dấu tiếng Việt; **ä/ö/ü/ß của tiếng Đức vẫn đúng**.
-- [ ] **Tên quán + địa chỉ** đúng.
+- [ ] **Tên tiệm + địa chỉ** đúng.
 - [ ] **Ngày tách ca sáng/chiều** hiển thị rõ (đường kẻ tách trong ô / mỗi ca một hàng), mỗi ngày một khối.
 - [ ] **Ngày Chủ Nhật** (ca liền mạch, không tách) hiển thị đúng, **Pause đúng**.
 - [ ] Ngày **nghỉ** ghi **"Frei"**; ngày **lễ** ghi **tên lễ**; ngày **đóng cửa** ghi **chú thích** đúng.
@@ -70,7 +70,7 @@
 - [ ] **Hợp lệ** hiện **xanh** khi đúng; **lỗi (đỏ)** vs **cảnh báo (vàng)** phân biệt đúng.
 - [ ] Warning/lỗi gộp sau nút **(i)**; mở ra ghi **"vì sao"** cho **từng người**.
 - [ ] Bấm **"Tạo lịch"** xong hiện **toast thành công**.
-- [ ] (Không áp dụng cho quán mở 2 khung/ngày: ca gãy trưa–tối là bình thường, không có banner tách ca.)
+- [ ] (Tiệm mở liên tục cả ngày: mỗi người mỗi ngày chỉ một ca, không có ca gãy và không có banner tách ca.)
 - [ ] Số liệu **Dashboard** đúng: số NV, VZ/TZ/MJ, tổng định mức, đã xếp, chưa xếp.
 - [ ] **Không có lỗi trong Console** khi: mở app / tạo lịch / xuất PDF.
 
@@ -86,7 +86,7 @@
 
 ## F. Dữ liệu · khóa · đăng nhập · đồng bộ
 
-- [ ] Mở lần đầu có sẵn **dữ liệu mẫu nhân viên của quán** (mỗi quán một danh sách riêng); đổi **Tháng/Năm** cập nhật đúng.
+- [ ] Mở lần đầu có sẵn **dữ liệu mẫu nhân viên của tiệm** (mỗi tiệm một danh sách riêng); đổi **Tháng/Năm** cập nhật đúng.
 - [ ] Xuất lịch **một tuần** ⇒ **khóa** lịch tháng; **mở khóa** lại được; **tạo lịch mới** cũng mở khóa.
 - [ ] **Thêm / sửa / xoá nhân viên** (kể cả **"Ngày vào làm"**, **ca cố định**) cập nhật đúng.
 - [ ] **Ngày nghỉ / đóng cửa / half-day** (override) áp đúng, **lưu lại**.
@@ -107,12 +107,12 @@
 
 ## Trước khi giao khách (bắt buộc chạy tay)
 
-- [ ] **In ra 3 tháng full cả quán** (mỗi tháng, tất cả nhân viên).
+- [ ] **In ra 3 tháng full cả tiệm** (mỗi tháng, tất cả nhân viên).
 - [ ] **In ra 6 tháng random các nhân viên** (chọn ngẫu nhiên người + tháng).
 - [ ] **Check thuật toán** — xem [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md):
-  - [ ] Không ai > **8h/ngày** (mức quán tự đặt, luật cho 10h); không ai > **6 ngày liên tiếp**.
+  - [ ] Không ai > **8h/ngày** (mức tiệm tự đặt, luật cho 10h); không ai > **6 ngày liên tiếp**.
   - [ ] Pause đúng ngưỡng; Gesamtstunden khớp định mức.
-  - [ ] Phủ **peak hour / peak day**; số người tối thiểu theo [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md) của quán (Shin/Coco: luôn ≥ 1 người, tới 15:00 và tới 22:00 phải còn người).
+  - [ ] Phủ **kín giờ mở cửa** (luôn ≥ 1 người) và đủ người trong **cao điểm** 15:00–19:00 (T7 từ 11:00) theo [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md); chỗ thiếu duy nhất được chấp nhận là tuần bị cắt ở đầu/cuối tháng.
 - [ ] **Check format** — đối chiếu mục **B** ở trên trên vài file vừa in.
 
 ---
@@ -120,4 +120,4 @@
 ### Ký nghiệm thu
 
 - Người test: __________________  Ngày: __________  (đã tick đủ A–G + "trước khi giao khách")
-- Chủ quán duyệt: __________________  Ngày: __________
+- Chủ tiệm duyệt: __________________  Ngày: __________

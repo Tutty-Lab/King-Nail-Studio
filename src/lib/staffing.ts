@@ -10,12 +10,12 @@ export type StaffingWindow = {
   maxStaff: number;
 };
 
-/** Ab hier läuft der Abend aus – bis dahin muss jemand im Laden bleiben. */
-export const CLOSING_START = 21 * 60 + 30;
-export const CLOSING_MIN = 1;
-export const CLOSING_MAX = Infinity;
-/** Ende des Mittagsblocks; auch hier bleibt jemand bis zum Schluss. */
-export const LUNCH_END = 15 * 60;
+/** Anfang der Hauptzeit an Werktagen (Mo–Fr): ab hier wird es voll. */
+export const PEAK_START = 15 * 60;
+/** Ende der Hauptzeit – danach läuft der Tag aus. */
+export const PEAK_END = 19 * 60;
+/** Samstags geht die Hauptzeit schon am späten Vormittag los. */
+export const SATURDAY_PEAK_START = 11 * 60;
 
 /**
  * Eine Besetzungsregel: WO (Zeitspanne je Öffnungsblock) und WIE VIELE.
@@ -25,7 +25,7 @@ export const LUNCH_END = 15 * 60;
  * aufgerundet – starke Tage tragen so automatisch mehr.
  *
  * Einzige Quelle für Scheduler, Độ phủ-Bericht und Tab „Tài liệu": wer die
- * Besetzung eines Ladens ändert, ändert nur diese Liste.
+ * Besetzung eines Studios ändert, ändert nur diese Liste.
  */
 export type StaffingRule = {
   label: string;
@@ -45,31 +45,65 @@ export const clip = (from: number, to: number) => (blocks: DayBlocks): DayWindow
     .map((block) => ({ startMinutes: Math.max(from, block.startMinutes), endMinutes: Math.min(to, block.endMinutes) }))
     .filter((window) => window.endMinutes > window.startMinutes);
 
+/** Die ganze Öffnungszeit – es ist IMMER jemand im Studio. */
+export const wholeDay = (blocks: DayBlocks): DayWindow[] =>
+  blocks.map((block) => ({ startMinutes: block.startMinutes, endMinutes: block.endMinutes }));
+
+const WERKTAGE: readonly WeekdayKey[] = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+
 /**
- * Vorgabe des Betriebs (Shin):
- *  - „Ít nhất có 1 nhân viên làm tới 15:00" und „tới 22:00" – harte Regeln,
- *    deshalb eigene Fenster am Ende beider Blöcke.
- *  - „1 ca khoảng 4-5 người" – als Spanne 3–7 mittags und 4–7 abends geführt:
- *    der Monat hat rund 1.146 Vertragsstunden auf 26 offene Tage, das sind im
- *    Schnitt gut 5 Leute im Haus. Die Verteilung über den Tag macht die
- *    Nachfragekurve unten.
+ * Cơ sở 1 – Schloss Arkaden (658 Vertragsstunden im Monat, offen 09:30–20:00).
+ *
+ *  - „Phải phủ kín giờ mở cửa" – harte Regel: nie null Personen.
+ *  - „Peak T2–T6 15:00–19:00, T7 11:00–19:00" – dort die höhere Untergrenze.
+ *    Samstag ist der stärkste Tag (Gewicht 2,0) und trägt deshalb drei Leute.
+ *
+ * Die Untergrenzen sind gegen das Stundenbudget gerechnet: der schwächste Tag
+ * (Dienstag) hat rund 17,7 h – Abdeckung 09:30–20:00 plus eine zweite Person
+ * von 15 bis 19 Uhr kostet 14,5 h, passt also. Samstag hat rund 35 h, drei
+ * Personen von 11 bis 19 Uhr kosten etwa 31 h.
  */
-export const STAFFING_RULES: readonly StaffingRule[] = [
+export const ARKADEN_STAFFING_RULES: readonly StaffingRule[] = [
   {
-    label: "Trong giờ mở cửa", when: "suốt mỗi khung mở", minStaff: 1, maxStaff: Infinity, scaled: false,
-    windows: (blocks) => blocks.map((block) => ({ startMinutes: block.startMinutes, endMinutes: block.endMinutes })),
+    label: "Trong giờ mở cửa", when: "suốt giờ mở cửa", minStaff: 1, maxStaff: Infinity, scaled: false,
+    windows: wholeDay,
   },
   {
-    label: "Chốt ca trưa", when: "14:30–15:00", minStaff: 1, maxStaff: Infinity, scaled: false,
-    windows: clip(14 * 60 + 30, LUNCH_END),
+    label: "Cao điểm T2–T6", when: "15:00–19:00", minStaff: 2, maxStaff: 5, scaled: false,
+    weekdays: WERKTAGE, windows: clip(PEAK_START, PEAK_END),
   },
-  { label: "Trưa", when: "12:00–14:00", minStaff: 3, maxStaff: 7, scaled: false, windows: clip(12 * 60, 14 * 60) },
-  { label: "Tối", when: "18:00–21:00", minStaff: 4, maxStaff: 7, scaled: false, windows: clip(18 * 60, 21 * 60) },
   {
-    label: "Đóng cửa", when: "21:30–22:00", minStaff: CLOSING_MIN, maxStaff: CLOSING_MAX, scaled: false,
-    windows: clip(CLOSING_START, 22 * 60),
+    label: "Cao điểm T7", when: "11:00–19:00", minStaff: 3, maxStaff: 6, scaled: false,
+    weekdays: ["saturday"], windows: clip(SATURDAY_PEAK_START, PEAK_END),
   },
 ];
+
+/**
+ * Cơ sở 2 – Papenstieg (439 Vertragsstunden, offen 09:00–19:00, Sa bis 18:00).
+ *
+ * Kleineres Team, deshalb niedrigere Untergrenzen: Mo–Do reicht das Budget
+ * NICHT für zwei Personen über die volle Hauptzeit (Dienstag rund 11,7 h,
+ * die Abdeckung allein kostet schon 10 h). Zwei Personen sind daher an den
+ * starken Tagen Freitag und Samstag verlangt; an den übrigen Tagen sorgt die
+ * Nachfragekurve dafür, dass die Leute trotzdem in die Hauptzeit fallen.
+ */
+export const PAPENSTIEG_STAFFING_RULES: readonly StaffingRule[] = [
+  {
+    label: "Trong giờ mở cửa", when: "suốt giờ mở cửa", minStaff: 1, maxStaff: Infinity, scaled: false,
+    windows: wholeDay,
+  },
+  {
+    label: "Cao điểm T6", when: "15:00–19:00", minStaff: 2, maxStaff: 4, scaled: false,
+    weekdays: ["friday"], windows: clip(PEAK_START, PEAK_END),
+  },
+  {
+    label: "Cao điểm T7", when: "11:00–18:00", minStaff: 2, maxStaff: 4, scaled: false,
+    weekdays: ["saturday"], windows: clip(SATURDAY_PEAK_START, 18 * 60),
+  },
+];
+
+/** Rückfall für Tests und Altaufrufe. */
+export const STAFFING_RULES = ARKADEN_STAFFING_RULES;
 
 /** Mindest-/Höchstzahl einer Regel an einem Wochentag (Gewicht angewandt, aufgerundet). */
 export function ruleRange(rule: StaffingRule, weekday: WeekdayKey): { minStaff: number; maxStaff: number } {
@@ -97,13 +131,14 @@ export function staffingWindows(
 
 // ── Đường nhu cầu trong ngày ────────────────────────────────────────────────
 /**
- * Nhu cầu tương đối theo giờ (1,0 = bình thường) – dạng „ngọn núi": chuẩn bị,
- * lên dốc, đỉnh, xuống dốc. Thuật toán chia GIỜ CÔNG CỦA NGÀY (đã nhân hệ số
- * ngày) theo đường này thành số người mục tiêu cho từng 30 phút, rồi phạt độ
- * lệch theo bình phương – nhờ vậy số người lên xuống mượt, không dồn cục.
+ * Nhu cầu tương đối theo giờ (1,0 = bình thường) – dạng „ngọn núi": mở cửa
+ * vắng, trưa nhích lên, cao điểm 15:00–19:00, cuối ngày vãn. Thuật toán chia
+ * GIỜ CÔNG CỦA NGÀY (đã nhân hệ số ngày) theo đường này thành số người mục tiêu
+ * cho từng 30 phút, rồi phạt độ lệch theo bình phương – nhờ vậy số người lên
+ * xuống mượt, không dồn cục.
  *
- * Shin mở hai khung: trưa 11:30–15:00 và tối 17:00–22:00. Cuối tuần và ngày lễ
- * khách ăn trưa đông hơn, nên đỉnh trưa cao hơn (cột phải).
+ * Tiệm nail mở LIÊN TỤC cả ngày (không nghỉ trưa). Thứ Bảy khách tới sớm nên
+ * cao điểm kéo dài từ 11:00 (cột phải).
  */
 export type DemandBand = { startMinutes: number; endMinutes: number; level: number; label: string };
 
@@ -112,44 +147,33 @@ const band = (from: string, to: string, level: number, label: string): DemandBan
   return { startMinutes: toMinutes(from), endMinutes: toMinutes(to), level, label };
 };
 
-export const DEMAND_PROFILE: { weekday: readonly DemandBand[]; sunday: readonly DemandBand[] } = {
-  weekday: [
-    band("11:30", "12:00", 0.8, "Mở cửa, chuẩn bị"),
-    band("12:00", "13:00", 1.3, "Cao điểm trưa"),
-    band("13:00", "13:30", 1.1, "Cuối cao điểm trưa"),
-    band("13:30", "14:30", 0.9, "Cuối trưa"),
-    band("14:30", "15:00", 0.75, "Chốt ca trưa"),
-    band("17:00", "17:30", 0.85, "Mở ca tối"),
-    band("17:30", "18:00", 1.05, "Chuẩn bị tối"),
-    band("18:00", "18:30", 1.3, "Vào cao điểm"),
-    band("18:30", "20:00", 1.5, "Cao điểm tối"),
-    band("20:00", "20:30", 1.3, "Sau cao điểm"),
-    band("20:30", "21:00", 1.1, "Vãn khách"),
-    band("21:00", "21:30", 0.95, "Vãn khách"),
-    band("21:30", "22:00", 0.8, "Đóng cửa"),
+export const DEMAND_PROFILE: { normal: readonly DemandBand[]; saturday: readonly DemandBand[] } = {
+  normal: [
+    band("09:00", "10:00", 0.7, "Mở cửa, vắng khách"),
+    band("10:00", "12:00", 0.9, "Buổi sáng"),
+    band("12:00", "14:00", 1.1, "Trưa"),
+    band("14:00", "15:00", 1.2, "Vào cao điểm"),
+    band("15:00", "17:00", 1.5, "Cao điểm chiều"),
+    band("17:00", "19:00", 1.5, "Cao điểm tối"),
+    band("19:00", "20:00", 0.9, "Vãn khách, đóng cửa"),
   ],
-  // T5–CN và ngày lễ: trưa đông hơn hẳn ngày thường.
-  sunday: [
-    band("11:30", "12:00", 1.0, "Mở cửa, chuẩn bị"),
-    band("12:00", "13:30", 1.5, "Cao điểm trưa"),
-    band("13:30", "14:30", 1.2, "Cuối trưa"),
-    band("14:30", "15:00", 0.9, "Chốt ca trưa"),
-    band("17:00", "17:30", 1.0, "Mở ca tối"),
-    band("17:30", "18:00", 1.2, "Chuẩn bị tối"),
-    band("18:00", "20:00", 1.5, "Cao điểm tối"),
-    band("20:00", "21:00", 1.2, "Sau cao điểm"),
-    band("21:00", "21:30", 1.0, "Vãn khách"),
-    band("21:30", "22:00", 0.9, "Đóng cửa"),
+  // Thứ Bảy: khách đi mua sắm từ trưa, cao điểm kéo dài 11:00–19:00.
+  saturday: [
+    band("09:00", "10:00", 0.9, "Mở cửa"),
+    band("10:00", "11:00", 1.1, "Khách bắt đầu đông"),
+    band("11:00", "15:00", 1.5, "Cao điểm trưa"),
+    band("15:00", "19:00", 1.5, "Cao điểm chiều"),
+    band("19:00", "20:00", 1.0, "Vãn khách, đóng cửa"),
   ],
 };
 
 export function demandProfileOf(
   weekday: WeekdayKey,
-  weights: Record<WeekdayKey, number> = DAY_WEIGHTS,
+  _weights: Record<WeekdayKey, number> = DAY_WEIGHTS,
 ): readonly DemandBand[] {
-  // Ngày đông (hệ số > 1) dùng đường có đỉnh trưa cao. Mỗi quán có hệ số riêng:
-  // Shin/Coco đông T5–CN, Nieu đông T6–CN.
-  return weights[weekday] > 1 ? DEMAND_PROFILE.sunday : DEMAND_PROFILE.weekday;
+  // Chỉ thứ Bảy có đường riêng (cao điểm dài). Thứ Sáu cũng đông, nhưng đông
+  // vào ĐÚNG khung cao điểm chiều – việc đó đã nằm ở hệ số ngày (2,0).
+  return weekday === "saturday" ? DEMAND_PROFILE.saturday : DEMAND_PROFILE.normal;
 }
 
 /** Relative workload at a minute (1 outside all bands). */

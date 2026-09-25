@@ -1,8 +1,8 @@
 // ============================================================================
-// Arbeitszeit-Fenster (giờ làm) je Wochentag + Feiertag. Das ist das Fenster,
-// in dem Schichten geplant werden dürfen (Früh am Fenster-Beginn, Spät am
-// Fenster-Ende). Feiertage (Baden-Württemberg) werden für die Nachfrage wie
-// Sonntag behandelt und haben ihr eigenes Zeitfenster.
+// Öffnungszeiten je Wochentag. King Nail hat DURCHGEHEND offen (kein Block in
+// der Mitte), sonntags und an Feiertagen ist zu. Jede Filiale bringt ihre
+// eigenen Zeiten mit (stores.ts) – im Einkaufszentrum wird länger geöffnet als
+// im Ladengeschäft.
 // ============================================================================
 
 import { parseIsoDate, weekdayKeyOf, type WeekdayKey } from "./demand";
@@ -10,22 +10,18 @@ import { parseIsoDate, weekdayKeyOf, type WeekdayKey } from "./demand";
 export type DayWindow = { startMinutes: number; endMinutes: number };
 
 /**
- * Ein Arbeitstag besteht bei Shin aus ZWEI Blöcken: mittags und abends.
- * Dazwischen (15:00–17:00) ist der Laden zu – das ist keine bezahlte Pause,
- * sondern geschlossene Zeit. Ein Dienst muss immer KOMPLETT in einen Block
- * passen.
+ * Ein Arbeitstag kann aus mehreren Blöcken bestehen; hier ist es immer genau
+ * einer, weil durchgehend geöffnet ist.
  */
 export type DayBlocks = DayWindow[];
 
 export type WorkHoursConfig = {
   perWeekday: Record<WeekdayKey, DayBlocks>;
   holiday: DayBlocks;
-  /**
-   * Wochentage, an denen der Laden grundsätzlich geschlossen ist (kein Dienst).
-   * Bei Shin ist das der Montag (Ruhetag). Ein Datum-Override mit eigenen
-   * Zeiten kann einen solchen Tag im Einzelfall trotzdem öffnen.
-   */
+  /** Wochentage, an denen grundsätzlich geschlossen ist (hier: Sonntag). */
   closedWeekdays: Record<WeekdayKey, boolean>;
+  /** true = an gesetzlichen Feiertagen geschlossen (Ladenschluss). */
+  holidayClosed?: boolean;
 };
 
 /**
@@ -67,42 +63,63 @@ export function longestBlock(blocks: DayBlocks): number {
 }
 
 const w = (start: number, end: number): DayWindow => ({ startMinutes: start, endMinutes: end });
+const copy = (blocks: DayBlocks): DayBlocks => blocks.map((b) => ({ ...b }));
 
-// Vorgabe des Betriebs (Shin Restaurant), Arbeitszeit:
-//   Montag             Ruhetag
-//   Dienstag–Sonntag   11:30–15:00 UND 17:00–22:00
-//   Feiertag           wie Sonntag geöffnet (stärkster Umsatz)
-const SHIN_TAG: DayBlocks = [w(11 * 60 + 30, 15 * 60), w(17 * 60, 22 * 60)];
-
-export const DEFAULT_WORK_HOURS: WorkHoursConfig = {
-  perWeekday: {
-    monday: SHIN_TAG.map((b) => ({ ...b })), // geschlossen, nur als Rückfall
-    tuesday: SHIN_TAG.map((b) => ({ ...b })),
-    wednesday: SHIN_TAG.map((b) => ({ ...b })),
-    thursday: SHIN_TAG.map((b) => ({ ...b })),
-    friday: SHIN_TAG.map((b) => ({ ...b })),
-    saturday: SHIN_TAG.map((b) => ({ ...b })),
-    sunday: SHIN_TAG.map((b) => ({ ...b })),
-  },
-  // Feiertage: offen wie sonst, aber mit dem höchsten Umsatz (siehe DAY_WEIGHTS).
-  holiday: SHIN_TAG.map((b) => ({ ...b })),
-  closedWeekdays: {
-    monday: true, // Shin: montags Ruhetag
-    tuesday: false,
-    wednesday: false,
-    thursday: false,
-    friday: false,
-    saturday: false,
-    sunday: false,
-  },
+const CLOSED_SUNDAY: Record<WeekdayKey, boolean> = {
+  monday: false,
+  tuesday: false,
+  wednesday: false,
+  thursday: false,
+  friday: false,
+  saturday: false,
+  sunday: true,
 };
 
+// Cơ sở 1 – Schloss Arkaden: T2–T7 09:30–20:00, CN nghỉ.
+const ARKADEN_TAG: DayBlocks = [w(9 * 60 + 30, 20 * 60)];
+
+export const ARKADEN_WORK_HOURS: WorkHoursConfig = {
+  perWeekday: {
+    monday: copy(ARKADEN_TAG),
+    tuesday: copy(ARKADEN_TAG),
+    wednesday: copy(ARKADEN_TAG),
+    thursday: copy(ARKADEN_TAG),
+    friday: copy(ARKADEN_TAG),
+    saturday: copy(ARKADEN_TAG),
+    sunday: copy(ARKADEN_TAG), // geschlossen, nur als Rückfall
+  },
+  holiday: copy(ARKADEN_TAG), // wird durch holidayClosed nicht benutzt
+  closedWeekdays: { ...CLOSED_SUNDAY },
+  holidayClosed: true,
+};
+
+// Cơ sở 2 – Papenstieg: T2–T6 09:00–19:00, T7 09:00–18:00, CN nghỉ.
+const PAPEN_WERKTAG: DayBlocks = [w(9 * 60, 19 * 60)];
+const PAPEN_SAMSTAG: DayBlocks = [w(9 * 60, 18 * 60)];
+
+export const PAPENSTIEG_WORK_HOURS: WorkHoursConfig = {
+  perWeekday: {
+    monday: copy(PAPEN_WERKTAG),
+    tuesday: copy(PAPEN_WERKTAG),
+    wednesday: copy(PAPEN_WERKTAG),
+    thursday: copy(PAPEN_WERKTAG),
+    friday: copy(PAPEN_WERKTAG),
+    saturday: copy(PAPEN_SAMSTAG),
+    sunday: copy(PAPEN_WERKTAG), // geschlossen, nur als Rückfall
+  },
+  holiday: copy(PAPEN_WERKTAG),
+  closedWeekdays: { ...CLOSED_SUNDAY },
+  holidayClosed: true,
+};
+
+/** Rückfall, wenn keine Filiale angegeben ist (Tests, Standardparameter). */
+export const DEFAULT_WORK_HOURS: WorkHoursConfig = ARKADEN_WORK_HOURS;
+
 /**
- * Für Nachfrage/Spätquote maßgeblicher Wochentag: Feiertage zählen wie Sonntag
- * (der Nutzer gruppiert „Sonntag & Feiertag").
+ * Für Nachfrage und Besetzung maßgeblicher Wochentag. Feiertage sind hier
+ * geschlossen, deshalb bleibt es beim echten Wochentag.
  */
-export function effectiveWeekdayKey(isoDate: string, holidays: Set<string>): WeekdayKey {
-  if (holidays.has(isoDate)) return "sunday";
+export function effectiveWeekdayKey(isoDate: string, _holidays: Set<string>): WeekdayKey {
   return weekdayKeyOf(parseIsoDate(isoDate));
 }
 
@@ -131,7 +148,7 @@ const open = (blocks: DayBlocks): ResolvedDay => ({
 /**
  * Vollständige Auflösung eines Tages inkl. Ausnahmen:
  * Ausnahme geschlossen > Ausnahme eigene Zeiten > geschlossener Wochentag
- * (Montag) > Feiertag > Wochentag.
+ * (Sonntag) > Feiertag (zu) > Wochentag.
  */
 export function resolveDay(
   config: WorkHoursConfig,
@@ -141,11 +158,11 @@ export function resolveDay(
 ): ResolvedDay {
   const ov = overrides[isoDate];
   if (ov?.closed) return CLOSED;
-  // Ein Override mit eigenen Zeiten öffnet den Tag auch dann, wenn der
-  // Wochentag sonst geschlossen wäre – dort gilt ein einzelner Block.
+  // Ein Override mit eigenen Zeiten öffnet den Tag auch dann, wenn sonst zu wäre.
   if (ov?.window) return open([ov.window]);
   const weekday = weekdayKeyOf(parseIsoDate(isoDate));
   if (config.closedWeekdays?.[weekday]) return CLOSED;
+  if (config.holidayClosed !== false && holidays.has(isoDate)) return CLOSED;
   return open(resolveWorkBlocks(config, isoDate, holidays));
 }
 
@@ -161,32 +178,27 @@ export function isDayClosed(
 
 /** Ein einzelner Eintrag aus einem gespeicherten Stand als Blockliste. */
 function blocksFrom(value: unknown, fallback: DayBlocks): DayBlocks {
-  // Neuer Stand: bereits eine Liste.
   if (Array.isArray(value)) {
     const out = value.filter(
       (b): b is DayWindow =>
         !!b && typeof b.startMinutes === "number" && typeof b.endMinutes === "number",
     );
     if (out.length > 0) return out.map((b) => ({ ...b }));
-    return fallback.map((b) => ({ ...b }));
+    return copy(fallback);
   }
   // Alter Stand: EIN Fenster als Objekt – wird zu einer Liste mit einem Block.
   const one = value as DayWindow | undefined;
   if (one && typeof one.startMinutes === "number" && typeof one.endMinutes === "number") {
     return [{ startMinutes: one.startMinutes, endMinutes: one.endMinutes }];
   }
-  return fallback.map((b) => ({ ...b }));
+  return copy(fallback);
 }
 
-/**
- * Tiefe Kopie mit Auffüllen fehlender Felder.
- *
- * Wandelt dabei alte Speicherstände mit genau EINEM Fenster je Wochentag in
- * die Blockliste um. Ohne diesen Schritt käme aus der Datenbank ein Objekt,
- * wo der Code eine Liste erwartet, und der Tag wäre lautlos ohne Öffnung.
- */
-export function normalizeWorkHours(partial: Partial<WorkHoursConfig> | undefined): WorkHoursConfig {
-  const base = DEFAULT_WORK_HOURS;
+/** Tiefe Kopie mit Auffüllen fehlender Felder aus den Zeiten der Filiale. */
+export function normalizeWorkHours(
+  partial: Partial<WorkHoursConfig> | undefined,
+  base: WorkHoursConfig = DEFAULT_WORK_HOURS,
+): WorkHoursConfig {
   const perWeekday = {} as Record<WeekdayKey, DayBlocks>;
   for (const key of Object.keys(base.perWeekday) as WeekdayKey[]) {
     perWeekday[key] = blocksFrom(partial?.perWeekday?.[key], base.perWeekday[key]);
@@ -200,5 +212,7 @@ export function normalizeWorkHours(partial: Partial<WorkHoursConfig> | undefined
       if (typeof v === "boolean") closedWeekdays[key] = v;
     }
   }
-  return { perWeekday, holiday, closedWeekdays };
+  const holidayClosed =
+    typeof partial?.holidayClosed === "boolean" ? partial.holidayClosed : base.holidayClosed !== false;
+  return { perWeekday, holiday, closedWeekdays, holidayClosed };
 }

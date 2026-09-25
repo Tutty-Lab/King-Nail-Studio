@@ -51,7 +51,7 @@ type Draft = {
   fixedStart: string; // "HH:MM"
   fixedEnd: string; // "HH:MM"
   availableWeekdays: WeekdayKey[]; // [] = mọi ngày
-  /** Ngày lễ bắt buộc có mặt (Shin: Bá Việt Nguyen). */
+  /** Ngày lễ bắt buộc có mặt (King Nail đóng cửa ngày lễ nên thường không dùng). */
   holidayDuty: boolean;
   maxDays: string;
   startDate: string; // "yyyy-MM-dd" hoặc "" = từ đầu tháng
@@ -167,7 +167,7 @@ export function EmployeesTab({ store }: { store: UseScheduleReturn }) {
       </div>
       <p className="text-xs text-slate-500 mb-4">
         Hợp đồng nhập theo <b>tháng</b> (hoặc theo tuần nếu người đó ký theo tuần). Giờ được chia cho các
-        tuần rồi cho từng ngày theo hệ số ngày đông. Tháng này quán mở <b>{openDays}</b> ngày, mỗi người tối
+        tuần rồi cho từng ngày theo hệ số ngày đông. Tháng này tiệm mở <b>{openDays}</b> ngày, mỗi người tối
         đa 6 ngày liên tiếp và 8 giờ công mỗi ngày. Bấm vào một người để sửa.
       </p>
 
@@ -410,7 +410,7 @@ function EmployeeSheet({
               <span>
                 Trực ngày lễ
                 <span className="block text-xs text-slate-500">
-                  Ngày lễ nào quán mở thì người này luôn có ca.
+                  Ngày lễ nào tiệm mở thì người này luôn có ca.
                 </span>
               </span>
             </label>

@@ -42,7 +42,7 @@ ls src/lib/__tests__ | grep -Ei '_probe|_audit|_headcount|scratch|tmp|_min' || e
   - [ ] **Xuất 1 PDF** (một người) — có kẻ bảng, tải/lưu được.
   - [ ] **Console không lỗi**.
 - [ ] Nếu prod dùng **Supabase**: xác nhận **đồng bộ** ok, **không** ghi đè dữ liệu
-      thật của chủ quán bằng dữ liệu test.
+      thật của chủ tiệm bằng dữ liệu test.
 
 ---
 

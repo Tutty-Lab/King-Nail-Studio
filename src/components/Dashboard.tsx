@@ -81,7 +81,7 @@ function underQuotaReason(emp: Employee | undefined, schedule: Schedule): string
     parts.push(`giới hạn ${emp.maxDaysPerWeek} ngày/tuần`);
   }
   if (parts.length === 0) {
-    return "hợp đồng cao hơn số giờ quán mở trong tháng (tối đa 8 giờ công/ngày, nghỉ 1 ngày mỗi tuần) — tháng này không đủ ngày để xếp đủ giờ.";
+    return "hợp đồng cao hơn số giờ tiệm mở trong tháng (tối đa 8 giờ công/ngày, nghỉ 1 ngày mỗi tuần) — tháng này không đủ ngày để xếp đủ giờ.";
   }
   return `do ${parts.join("; ")}.`;
 }

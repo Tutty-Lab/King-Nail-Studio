@@ -1,11 +1,11 @@
 # Bộ tài liệu nghiệm thu (harness)
 
-Đây là **điều kiện nghiệm thu của chủ quán** cho app Lịch làm việc & Bảng chấm công
+Đây là **điều kiện nghiệm thu của chủ tiệm** cho app Lịch làm việc & Bảng chấm công
 (Dienstplan + Stundenzettel). App này dùng chung một mã nguồn cho mọi cửa hàng
-(mỗi quán là một bản sao của template này), nên bộ tài liệu này nằm trong
+(mỗi tiệm là một bản sao của template này), nên bộ tài liệu này nằm trong
 template để **mọi cửa hàng đều thừa hưởng**.
 
-Mục tiêu: trước khi giao một bản cho chủ quán, phải chạy hết các vòng kiểm dưới
+Mục tiêu: trước khi giao một bản cho chủ tiệm, phải chạy hết các vòng kiểm dưới
 đây và tick đủ. Xuất PDF là phần rủi ro nhất — **phải test trên máy thật, không
 chỉ giả lập**.
 
@@ -13,9 +13,9 @@ chỉ giả lập**.
 
 | File | Dùng cho ai | Nội dung |
 |------|-------------|----------|
-| [`nghiem-thu.md`](nghiem-thu.md) | QA / chủ quán | Checklist nghiệm thu A–G + ma trận thiết bị test PDF + "trước khi giao khách" |
+| [`nghiem-thu.md`](nghiem-thu.md) | QA / chủ tiệm | Checklist nghiệm thu A–G + ma trận thiết bị test PDF + "trước khi giao khách" |
 | [`release-checklist.md`](release-checklist.md) | Dev | Cổng kiểm trước khi push (mục H) + smoke trên prod sau deploy |
-| [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md) | Tất cả | Quy tắc giờ làm & nghỉ (luật Đức) + quy tắc app/quán (đổi được) |
+| [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md) | Tất cả | Quy tắc giờ làm & nghỉ (luật Đức) + quy tắc app/tiệm (đổi được) |
 
 ## 3 vòng kiểm, theo thứ tự
 
@@ -25,7 +25,7 @@ chỉ giả lập**.
    (xuất PDF trên thiết bị thật, nội dung file, tải/lưu, trạng thái, PWA, dữ liệu,
    hiển thị).
 3. **Trước khi giao khách** → cuối [`nghiem-thu.md`](nghiem-thu.md)
-   (in 3 tháng full cả quán, 6 tháng random nhân viên, soát thuật toán + format).
+   (in 3 tháng full cả tiệm, 6 tháng random nhân viên, soát thuật toán + format).
 
 ## Lệnh nhanh
 
@@ -42,5 +42,5 @@ npm run dev                # chạy thử local (localStorage), mở http://loca
 - Mỗi mục là một ô `- [ ]`. Copy file ra một bản cho mỗi lần nghiệm thu, tick dần.
 - Mục nào **chưa đạt** thì ghi chú lỗi ngay dưới dòng đó (thiết bị nào, bước nào,
   ảnh chụp màn hình).
-- Chỉ ký nghiệm thu khi **tất cả** ô đã tick (hoặc có lý do miễn được chủ quán
+- Chỉ ký nghiệm thu khi **tất cả** ô đã tick (hoặc có lý do miễn được chủ tiệm
   đồng ý bằng văn bản).

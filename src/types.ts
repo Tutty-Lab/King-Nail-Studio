@@ -69,8 +69,8 @@ export type Employee = {
    */
   requiredOnHolidays?: boolean;
   /**
-   * Dieselbe PERSON in mehreren Filialen (z. B. Bá Việt Nguyễn: Vollzeit im
-   * Shin, Minijob im Nieu). Gleicher Schlüssel = gleicher Mensch; der Planer
+   * Dieselbe PERSON in mehreren Filialen (bei King Nail derzeit niemand).
+   * Gleicher Schlüssel = gleicher Mensch; der Planer
    * belegt dann keinen Tag doppelt, denn die Läden liegen weit auseinander.
    */
   personKey?: string;

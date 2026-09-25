@@ -1,51 +1,17 @@
 // ============================================================================
-// Die zwei Filialen dieses Betriebs. Umschalten passiert im Tab „Cài đặt" und
-// in der Kopfzeile; jede Filiale hat ihre eigene Zeile in der gemeinsamen
-// Supabase-Tabelle (Schlüssel = id) und ihren eigenen LocalStorage-Schlüssel.
+// Die zwei Studios dieses Betriebs. Umschalten passiert im Tab „Cài đặt" und in
+// der Kopfzeile; jedes Studio hat seine eigene Zeile in der gemeinsamen
+// Supabase-Tabelle (Schlüssel = id) und seinen eigenen LocalStorage-Schlüssel.
 //
-// Beide Läden haben dieselben Öffnungszeiten, dieselben Besetzungsregeln und
-// liegen in Baden-Württemberg (gleiche Feiertage) – unterschiedlich sind Name,
-// Anschrift und Belegschaft.
+// Beide liegen in Braunschweig (Niedersachsen, gleiche Feiertage), haben aber
+// UNTERSCHIEDLICHE Öffnungszeiten, eigene Besetzungsregeln und eigene Teams.
 // ============================================================================
 
 import type { Employee, Schedule } from "../types";
-import { cocoEmployees, nieuEmployees, shinEmployees } from "./sampleData";
+import { arkadenEmployees, papenstiegEmployees } from "./sampleData";
 import { DAY_WEIGHTS, type WeekdayKey } from "./demand";
-import { STAFFING_RULES, clip, type StaffingRule } from "./staffing";
-import { DEFAULT_WORK_HOURS } from "./workHours";
-
-/** Starke Tage bei Nieu: erst ab FREITAG (Shin/Coco schon ab Donnerstag). */
-const NIEU_DAY_WEIGHTS: Record<WeekdayKey, number> = {
-  monday: 1.0, // Ruhetag
-  tuesday: 1.0,
-  wednesday: 1.0,
-  thursday: 1.0,
-  friday: 1.5,
-  saturday: 1.5,
-  sunday: 1.5,
-};
-
-/**
- * Nieu hat sechs Leute und kleinere Umsätze (1.000–1.500 € normal, 3.000 € an
- * starken Tagen) – die Spannen liegen deshalb eine Person unter Shin/Coco.
- * Die harten Regeln bleiben: bis 15:00 und bis 22:00 ist immer jemand da.
- */
-const NIEU_STAFFING_RULES: readonly StaffingRule[] = [
-  {
-    label: "Trong giờ mở cửa", when: "suốt mỗi khung mở", minStaff: 1, maxStaff: Infinity, scaled: false,
-    windows: (blocks) => blocks.map((block) => ({ startMinutes: block.startMinutes, endMinutes: block.endMinutes })),
-  },
-  {
-    label: "Chốt ca trưa", when: "14:30–15:00", minStaff: 1, maxStaff: Infinity, scaled: false,
-    windows: clip(14 * 60 + 30, 15 * 60),
-  },
-  { label: "Trưa", when: "12:00–14:00", minStaff: 2, maxStaff: 6, scaled: false, windows: clip(12 * 60, 14 * 60) },
-  { label: "Tối", when: "18:00–21:00", minStaff: 3, maxStaff: 6, scaled: false, windows: clip(18 * 60, 21 * 60) },
-  {
-    label: "Đóng cửa", when: "21:30–22:00", minStaff: 1, maxStaff: Infinity, scaled: false,
-    windows: clip(21 * 60 + 30, 22 * 60),
-  },
-];
+import { ARKADEN_STAFFING_RULES, PAPENSTIEG_STAFFING_RULES, type StaffingRule } from "./staffing";
+import { ARKADEN_WORK_HOURS, PAPENSTIEG_WORK_HOURS, type WorkHoursConfig } from "./workHours";
 
 export type StoreConfig = {
   /** Schlüssel der Zeile in store_data – nach dem Anlegen NICHT mehr ändern. */
@@ -54,41 +20,40 @@ export type StoreConfig = {
   /** Kurzname für den Umschalter in der Kopfzeile. */
   shortName: string;
   address: string;
+  /** Telefon des Studios (nur Anzeige/Dokumentation). */
+  phone: string;
+  /** Öffnungszeiten dieses Studios. */
+  workHours: WorkHoursConfig;
   /** Belegschaft beim allerersten Öffnen. */
   sampleEmployees: () => Employee[];
-  /** Welche Wochentage stark sind (Umsatz) – steuert die Stundenverteilung. */
+  /** Welche Wochentage stark sind (Kundenandrang) – steuert die Stundenverteilung. */
   dayWeights: Record<WeekdayKey, number>;
-  /** Wie viele Leute wann im Haus sein sollen. */
+  /** Wie viele Leute wann im Studio sein sollen. */
   staffingRules: readonly StaffingRule[];
 };
 
 export const STORES: StoreConfig[] = [
   {
-    id: "shin",
-    name: "Shin Restaurant",
-    shortName: "Shin",
-    address: "Hans-Thoma-Str. 2, 76448 Durmersheim",
-    sampleEmployees: shinEmployees,
+    id: "arkaden",
+    name: "King Nail Schloss Arkaden",
+    shortName: "Arkaden",
+    address: "Platz am Ritterbrunnen 1, 38100 Braunschweig",
+    phone: "0531 88532798",
+    workHours: ARKADEN_WORK_HOURS,
+    sampleEmployees: arkadenEmployees,
     dayWeights: DAY_WEIGHTS,
-    staffingRules: STAFFING_RULES,
+    staffingRules: ARKADEN_STAFFING_RULES,
   },
   {
-    id: "coco",
-    name: "Coco Restaurant",
-    shortName: "Coco",
-    address: "Bernhäuser Hauptstraße 17, 70794 Filderstadt",
-    sampleEmployees: cocoEmployees,
+    id: "papenstieg",
+    name: "King Nail Papenstieg",
+    shortName: "Papenstieg",
+    address: "Papenstieg 8, 38100 Braunschweig",
+    phone: "+49 531 34967521",
+    workHours: PAPENSTIEG_WORK_HOURS,
+    sampleEmployees: papenstiegEmployees,
     dayWeights: DAY_WEIGHTS,
-    staffingRules: STAFFING_RULES,
-  },
-  {
-    id: "nieu",
-    name: "Nieu 37 Restaurant",
-    shortName: "Nieu 37",
-    address: "Radgasse 9, 73430 Aalen",
-    sampleEmployees: nieuEmployees,
-    dayWeights: NIEU_DAY_WEIGHTS,
-    staffingRules: NIEU_STAFFING_RULES,
+    staffingRules: PAPENSTIEG_STAFFING_RULES,
   },
 ];
 
@@ -119,14 +84,14 @@ export function storeById(id: string): StoreConfig {
   return STORES.find((s) => s.id === id) ?? STORES[0];
 }
 
-/** Startstand einer Filiale: September 2026 mit der Belegschaft aus der Angabe. */
+/** Startstand eines Studios: September 2026 mit der Belegschaft aus der Angabe. */
 export function initialScheduleFor(store: StoreConfig): Schedule {
   return {
     companyName: store.name,
     address: store.address,
     year: 2026,
     month: 9,
-    workHours: structuredClone(DEFAULT_WORK_HOURS),
+    workHours: structuredClone(store.workHours),
     dateOverrides: [],
     employees: store.sampleEmployees(),
     shifts: [],
