@@ -29,13 +29,14 @@ Hai nhóm quy tắc: **(1) LUẬT** (không được vi phạm) và **(2) quy t�
 
 ## 2. Quy tắc app / quán — KHÔNG phải luật (đổi được tuỳ quán)
 
-Hai quán chung chủ: **Shin** (Durmersheim) và **Coco** (Filderstadt) — cùng ở Baden-Württemberg, cùng giờ mở, cùng quy tắc; dữ liệu tách riêng theo từng quán.
+Ba quán chung chủ: **Shin** (Durmersheim), **Coco** (Filderstadt) và **Nieu 37** (Aalen) — cùng ở Baden-Württemberg, cùng giờ mở và cùng luật giờ làm; dữ liệu tách riêng theo từng quán.
 
 - **Giờ mở:** T2 nghỉ; T3–CN và ngày lễ 11:30–15:00 và 17:00–22:00 (15:00–17:00 đóng cửa).
 - **Luôn có ít nhất 1 người tới 15:00 và tới 22:00** (quy tắc cứng).
-- **Mỗi ca khoảng 4–5 người**: trưa 3–7, tối 4–7 người.
-- **Ngày đông T5–CN** (hệ số 1,5) và ngày lễ được xếp nhiều giờ hơn T3–T4.
-- **Shin: ngày lễ phải có Bá Việt Nguyen trong ca** (Coco không có yêu cầu này).
+- **Mỗi ca khoảng 4–5 người**: Shin/Coco trưa 3–7, tối 4–7; Nieu 37 ít người hơn nên trưa 2–6, tối 3–6.
+- **Ngày đông:** Shin và Coco từ **T5–CN**; Nieu 37 từ **T6–CN** (hệ số 1,5). Ngày lễ tính như Chủ nhật.
+- **Shin: ngày lễ phải có Bá Việt Nguyen trong ca** (Coco và Nieu 37 không có yêu cầu này).
+- **Người làm hai quán** (Bá Việt Nguyen: Vollzeit ở Shin, Minijob ở Nieu 37): app xếp lần lượt từng quán và không xếp trùng ngày — hai quán cách nhau xa.
 - **Ngày làm 3–8 giờ công** (thấp hơn mức luật 10h). Ca trưa dài nhất 3,5h vì khung trưa chỉ 11:30–15:00; ai làm cả trưa lẫn tối thì phần ngắn hơn ít nhất 2h. Ca đứng một mình không dưới 3h.
 - **Mọi giờ nằm trên mốc 30 phút**; phần lẻ của tuần đầu/cuối tháng dồn sang tuần kề thay vì tạo ca 1–2 giờ.
 

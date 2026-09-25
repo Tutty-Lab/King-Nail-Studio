@@ -244,7 +244,11 @@ export function ScheduleTab({ store }: { store: UseScheduleReturn }) {
       ) : view === "day" ? (
         <ScheduleDayView store={store} onEdit={(employeeId, date) => setSelected({ employeeId, date })} />
       ) : view === "coverage" ? (
-        <CoverageChart schedule={schedule} dates={weeks[Math.min(weekIndex, weeks.length - 1)]?.dates ?? dates} />
+        <CoverageChart
+          schedule={schedule}
+          rules={store.storeConfig.staffingRules}
+          dates={weeks[Math.min(weekIndex, weeks.length - 1)]?.dates ?? dates}
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white -mx-3 sm:mx-0">
           <table className="border-collapse text-xs">

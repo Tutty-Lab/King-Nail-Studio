@@ -6,6 +6,8 @@
 
 import type { Employee, Shift } from "../types";
 import type { OverrideMap, WorkHoursConfig } from "./workHours";
+import type { StaffingRule } from "./staffing";
+import type { WeekdayKey } from "./demand";
 import { generateWeeklySchedule } from "./weeklyScheduler";
 
 export type GenerateInput = {
@@ -20,6 +22,14 @@ export type GenerateInput = {
   holidays?: Set<string>;
   /** Nicht verwendet (der Wochenplaner ist deterministisch); bleibt für die Signatur. */
   seed?: string;
+  /** Besetzungsregeln dieser Filiale. */
+  rules?: readonly StaffingRule[];
+  /** Tagesgewichte dieser Filiale. */
+  weights?: Record<WeekdayKey, number>;
+  /** Tage, an denen jemand schon im anderen Laden arbeitet. */
+  blockedDays?: Record<string, readonly string[]>;
+  /** Kennung der Filiale (interner Cache). */
+  storeTag?: string;
 };
 
 export function generateSchedule(input: GenerateInput): Shift[] {

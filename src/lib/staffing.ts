@@ -40,7 +40,7 @@ export type StaffingRule = {
 };
 
 /** Schneidet eine feste Uhrzeitspanne mit jedem Öffnungsblock. */
-const clip = (from: number, to: number) => (blocks: DayBlocks): DayWindow[] =>
+export const clip = (from: number, to: number) => (blocks: DayBlocks): DayWindow[] =>
   blocks
     .map((block) => ({ startMinutes: Math.max(from, block.startMinutes), endMinutes: Math.min(to, block.endMinutes) }))
     .filter((window) => window.endMinutes > window.startMinutes);
@@ -84,8 +84,12 @@ export function ruleAppliesOn(rule: StaffingRule, weekday: WeekdayKey): boolean 
   return !rule.weekdays || rule.weekdays.includes(weekday);
 }
 
-export function staffingWindows(blocks: DayBlocks, weekday: WeekdayKey): StaffingWindow[] {
-  return STAFFING_RULES.filter((rule) => ruleAppliesOn(rule, weekday)).flatMap((rule) => {
+export function staffingWindows(
+  blocks: DayBlocks,
+  weekday: WeekdayKey,
+  rules: readonly StaffingRule[] = STAFFING_RULES,
+): StaffingWindow[] {
+  return rules.filter((rule) => ruleAppliesOn(rule, weekday)).flatMap((rule) => {
     const range = ruleRange(rule, weekday);
     return rule.windows(blocks).map((window) => ({ label: rule.label, ...window, ...range }));
   });
@@ -139,14 +143,22 @@ export const DEMAND_PROFILE: { weekday: readonly DemandBand[]; sunday: readonly 
   ],
 };
 
-export function demandProfileOf(weekday: WeekdayKey): readonly DemandBand[] {
-  // Ngày đông (T5–CN, hệ số > 1) dùng đường có đỉnh trưa cao.
-  return DAY_WEIGHTS[weekday] > 1 ? DEMAND_PROFILE.sunday : DEMAND_PROFILE.weekday;
+export function demandProfileOf(
+  weekday: WeekdayKey,
+  weights: Record<WeekdayKey, number> = DAY_WEIGHTS,
+): readonly DemandBand[] {
+  // Ngày đông (hệ số > 1) dùng đường có đỉnh trưa cao. Mỗi quán có hệ số riêng:
+  // Shin/Coco đông T5–CN, Nieu đông T6–CN.
+  return weights[weekday] > 1 ? DEMAND_PROFILE.sunday : DEMAND_PROFILE.weekday;
 }
 
 /** Relative workload at a minute (1 outside all bands). */
-export function workloadAt(minute: number, weekday: WeekdayKey): number {
-  return demandProfileOf(weekday).find((b) => minute >= b.startMinutes && minute < b.endMinutes)?.level ?? 1;
+export function workloadAt(
+  minute: number,
+  weekday: WeekdayKey,
+  weights: Record<WeekdayKey, number> = DAY_WEIGHTS,
+): number {
+  return demandProfileOf(weekday, weights).find((b) => minute >= b.startMinutes && minute < b.endMinutes)?.level ?? 1;
 }
 
 /**
@@ -154,11 +166,17 @@ export function workloadAt(minute: number, weekday: WeekdayKey): number {
  *   mục tiêu = giờ công của ngày × mức nhu cầu ÷ tổng mức cả ngày (tính theo phút).
  * Trả về [phút bắt đầu, số người mục tiêu].
  */
-export function slotTargets(blocks: DayBlocks, weekday: WeekdayKey, targetHours: number, slot = 30): [number, number][] {
+export function slotTargets(
+  blocks: DayBlocks,
+  weekday: WeekdayKey,
+  targetHours: number,
+  slot = 30,
+  weights: Record<WeekdayKey, number> = DAY_WEIGHTS,
+): [number, number][] {
   const slots: [number, number][] = [];
   for (const block of blocks) {
     for (let minute = block.startMinutes; minute < block.endMinutes; minute += slot) {
-      slots.push([minute, workloadAt(minute, weekday)]);
+      slots.push([minute, workloadAt(minute, weekday, weights)]);
     }
   }
   const levelMinutes = slots.reduce((sum, [, level]) => sum + level * slot, 0);
@@ -194,8 +212,9 @@ export function weightedDailyTargets(
   total: number,
   weekdayOf: (date: string) => WeekdayKey,
   openMinutesOf?: (date: string) => number,
+  weights: Record<WeekdayKey, number> = DAY_WEIGHTS,
 ): Map<string, number> {
-  const factor = (date: string) => DAY_WEIGHTS[weekdayOf(date)] * (openMinutesOf ? openMinutesOf(date) : 1);
+  const factor = (date: string) => weights[weekdayOf(date)] * (openMinutesOf ? openMinutesOf(date) : 1);
   const sum = dates.reduce((acc, date) => acc + factor(date), 0);
   return new Map(dates.map((date) => [date, sum > 0 ? total * factor(date) / sum : 0]));
 }

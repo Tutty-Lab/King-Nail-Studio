@@ -22,7 +22,7 @@ import {
   type OverrideMap,
   type WorkHoursConfig,
 } from "./workHours";
-import { coveragePoints, staffingWindows, weightedDailyTargets, workingAt } from "./staffing";
+import { coveragePoints, staffingWindows, weightedDailyTargets, workingAt, type StaffingRule } from "./staffing";
 import { weekStartOf } from "./weeks";
 import { mayWorkOn } from "./availability";
 
@@ -88,6 +88,10 @@ export type AnalyzeInput = {
   employees: Employee[];
   shifts: Shift[];
   holidays?: Set<string>;
+  /** Besetzungsregeln dieser Filiale; fehlt = die Standardregeln. */
+  rules?: readonly StaffingRule[];
+  /** Tagesgewichte dieser Filiale; fehlt = DAY_WEIGHTS. */
+  weights?: Record<WeekdayKey, number>;
 };
 
 export function analyzeSchedule(input: AnalyzeInput): ScheduleAnalysis {
@@ -114,7 +118,7 @@ export function analyzeSchedule(input: AnalyzeInput): ScheduleAnalysis {
     const hours = weekDates.reduce((sum, date) => sum + (byDate.get(date) ?? []).reduce((acc, shift) => acc + shift.paidMinutes, 0), 0) / 60;
     const openMinutesOf = (value: string) => resolveDay(input.workHours, value, holidays, overrides).blocks
       .reduce((sum, block) => sum + (block.endMinutes - block.startMinutes), 0);
-    for (const [date, target] of weightedDailyTargets(weekDates, hours, (value) => effectiveWeekdayKey(value, holidays), openMinutesOf)) {
+    for (const [date, target] of weightedDailyTargets(weekDates, hours, (value) => effectiveWeekdayKey(value, holidays), openMinutesOf, input.weights)) {
       dailyTargets.set(date, target);
     }
   }
@@ -131,7 +135,7 @@ export function analyzeSchedule(input: AnalyzeInput): ScheduleAnalysis {
 
     const peaks: PeakCoverage[] = [];
     if (!day.closed) {
-      for (const peak of staffingWindows(day.blocks, effectiveWeekdayKey(date, holidays))) {
+      for (const peak of staffingWindows(day.blocks, effectiveWeekdayKey(date, holidays), input.rules)) {
         const from = peak.startMinutes;
         const to = peak.endMinutes;
         const points = coveragePoints(available, from, to).slice(0, -1);
@@ -197,7 +201,8 @@ export function analyzeSchedule(input: AnalyzeInput): ScheduleAnalysis {
       deviation: avgTargetHours > 0 ? avgHours / avgTargetHours - 1 : 0,
     });
   }
-  weekdayFit.sort((a, b) => DAY_WEIGHTS[a.weekday] - DAY_WEIGHTS[b.weekday]);
+  const weights = input.weights ?? DAY_WEIGHTS;
+  weekdayFit.sort((a, b) => weights[a.weekday] - weights[b.weekday]);
 
   const lengthHistogram = new Map<number, number>();
   for (const s of input.shifts) {

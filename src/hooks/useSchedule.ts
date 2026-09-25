@@ -205,8 +205,11 @@ export function useSchedule(storeId: string) {
       overrides: overridesToMap(schedule.dateOverrides),
       employees: schedule.employees,
       shifts: schedule.shifts,
+      rules: storeConfig.staffingRules,
+      weights: storeConfig.dayWeights,
     });
   }, [
+    storeConfig,
     schedule.year,
     schedule.month,
     schedule.workHours,
@@ -335,13 +338,21 @@ export function useSchedule(storeId: string) {
    * Angabe, für den aktuellen. Monat/Jahr werden im SELBEN Update gesetzt wie
    * die Schichten.
    */
-  const generate = useCallback((target?: { year: number; month: number }) => {
+  /**
+   * Plan erzeugen und ZURÜCKGEBEN. Der Rückgabewert wird gebraucht, weil die
+   * Läden nacheinander geplant werden: wer im ersten Laden schon einen Tag hat,
+   * ist im nächsten an diesem Tag blockiert (blockedDays).
+   */
+  const generate = useCallback((
+    target?: { year: number; month: number },
+    blockedDays?: Record<string, readonly string[]>,
+  ): Shift[] => {
     setGenError(null);
     const year = target?.year ?? schedule.year;
     const month = target?.month ?? schedule.month;
     if (!isScheduleYearAllowed(year)) {
       setGenError(`Chỉ tạo lịch cho các năm ${SCHEDULE_YEAR_RANGE_LABEL}.`);
-      return;
+      return [];
     }
     try {
       const shifts = generateSchedule({
@@ -350,15 +361,22 @@ export function useSchedule(storeId: string) {
         workHours: schedule.workHours,
         overrides: overridesToMap(schedule.dateOverrides),
         employees: schedule.employees,
+        rules: storeConfig.staffingRules,
+        weights: storeConfig.dayWeights,
+        blockedDays,
+        storeTag: storeConfig.id,
         seed: `${year}-${month}-${Date.now()}-${genNonce.current++}`,
       });
       setSchedule((s) => ({ ...s, year, month, shifts, lockedAt: undefined, printedWeeks: [] }));
       setOriginalShifts(shifts.map((sh) => ({ ...sh })));
       setGenStamp((n) => n + 1);
+      return shifts;
     } catch (err) {
       setGenError(err instanceof Error ? err.message : String(err));
+      return [];
     }
   }, [
+    storeConfig,
     schedule.year,
     schedule.month,
     schedule.workHours,

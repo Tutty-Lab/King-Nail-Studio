@@ -37,7 +37,15 @@ export function makeWeekly(
  */
 export function shinEmployees(): Employee[] {
   return [
-    { ...makeEmployee("shin-1", "Ba Viet Nguyen", "VOLLZEIT", 169), requiredOnHolidays: true },
+    {
+      // Arbeitet zusätzlich im Nieu (Minijob 35 h). Damit dort überhaupt Tage
+      // frei bleiben, plant Shin ihn auf höchstens 5 Tage je Woche – sonst
+      // belegt der Vollzeitvertrag alle sechs Öffnungstage.
+      ...makeEmployee("shin-1", "Ba Viet Nguyen", "VOLLZEIT", 169),
+      requiredOnHolidays: true,
+      personKey: "ba-viet-nguyen",
+      maxDaysPerWeek: 5,
+    },
     makeEmployee("shin-2", "Quoc Tu Tran", "VOLLZEIT", 173),
     makeEmployee("shin-3", "Quoc Minh Tran", "VOLLZEIT", 169),
     makeEmployee("shin-4", "Van Dang Tran", "VOLLZEIT", 160),
@@ -65,6 +73,27 @@ export function cocoEmployees(): Employee[] {
     makeEmployee("coco-6", "Viet Trung Nguyen", "VOLLZEIT", 152),
     makeEmployee("coco-7", "Thi Huong Nguyen", "MINIJOB", 39),
     makeEmployee("coco-8", "Viet An Bui", "MINIJOB", 43),
+  ];
+}
+
+/**
+ * Nieu 37 Restaurant, Radgasse 9, 73430 Aalen.
+ *
+ * Kleineres Team (6 Personen) und schwächere Umsätze als Shin/Coco: normal
+ * 1.000–1.500 €, starke Tage 3.000 €. Stark sind hier FREITAG bis SONNTAG.
+ *
+ * Bá Việt Nguyễn arbeitet zusätzlich Vollzeit im Shin – über personKey erkennt
+ * der Planer dieselbe Person und legt ihm hier keinen Tag hin, an dem er schon
+ * im Shin steht.
+ */
+export function nieuEmployees(): Employee[] {
+  return [
+    makeEmployee("nieu-1", "Cong Danh Bui", "VOLLZEIT", 151.8),
+    makeEmployee("nieu-2", "Ngoc So Nguyen", "VOLLZEIT", 169),
+    makeEmployee("nieu-3", "Van Hai Nguyen", "VOLLZEIT", 130),
+    makeEmployee("nieu-4", "Ba Nam Nguyen", "VOLLZEIT", 169),
+    makeEmployee("nieu-5", "Xuan Linh Trinh", "VOLLZEIT", 169),
+    { ...makeEmployee("nieu-6", "Ba Viet Nguyen", "MINIJOB", 35), personKey: "ba-viet-nguyen" },
   ];
 }
 

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { Schedule, Shift } from "../types";
 import { parseIsoDate, WEEKDAY_SHORT_VI, weekdayKeyOf } from "../lib/demand";
 import { publicHolidayNames, publicHolidays } from "../lib/holidays";
-import { coveragePoints, staffingWindows, workingAt } from "../lib/staffing";
+import { coveragePoints, staffingWindows, workingAt, type StaffingRule } from "../lib/staffing";
 import { effectiveWeekdayKey, resolveDay } from "../lib/workHours";
 import { minutesToTime } from "../lib/time";
 
@@ -40,7 +40,16 @@ function slotBackground(slot: Slot): string {
   return "bg-white";
 }
 
-export function CoverageChart({ schedule, dates }: { schedule: Schedule; dates: string[] }) {
+export function CoverageChart({
+  schedule,
+  dates,
+  rules,
+}: {
+  schedule: Schedule;
+  dates: string[];
+  /** Besetzungsregeln der Filiale – jede kann eigene Spannen haben. */
+  rules?: readonly StaffingRule[];
+}) {
   const holidayNames = useMemo(() => publicHolidayNames(schedule.year), [schedule.year]);
   const rows = useMemo(() => {
     const holidays = publicHolidays(schedule.year);
@@ -50,7 +59,7 @@ export function CoverageChart({ schedule, dates }: { schedule: Schedule; dates: 
       if (day.closed) return { date, slots: [] as Slot[] };
       const shifts = schedule.shifts.filter((shift) => shift.date === date);
       // Ngày lễ mở cửa được xếp như Chủ nhật – khung yêu cầu theo CN.
-      const windows = staffingWindows(day.blocks, effectiveWeekdayKey(date, holidays));
+      const windows = staffingWindows(day.blocks, effectiveWeekdayKey(date, holidays), rules);
       const slots: Slot[] = [];
       for (let from = day.window.startMinutes; from < day.window.endMinutes; from += SLOT) {
         const to = Math.min(from + SLOT, day.window.endMinutes);
@@ -69,7 +78,7 @@ export function CoverageChart({ schedule, dates }: { schedule: Schedule; dates: 
       }
       return { date, slots };
     });
-  }, [dates, schedule]);
+  }, [dates, schedule, rules]);
 
   const scale = Math.max(6, ...rows.flatMap((row) => row.slots.flatMap((slot) => [slot.actual, slot.required])));
 

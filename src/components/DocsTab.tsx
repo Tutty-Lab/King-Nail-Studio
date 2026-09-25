@@ -1,5 +1,4 @@
 import {
-  DAY_WEIGHTS,
   WEEKDAY_LABELS_VI,
   WEEKDAY_SHORT_VI,
   type WeekdayKey,
@@ -8,9 +7,6 @@ import {
   CLOSING_START,
   DEMAND_PROFILE,
   LUNCH_END,
-  STAFFING_RULES,
-  ruleAppliesOn,
-  ruleRange,
   type DemandBand,
 } from "../lib/staffing";
 import { DEFAULT_WORK_HOURS } from "../lib/workHours";
@@ -32,27 +28,34 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function WeekdayTable() {
+function WeekdayTable({ stores }: { stores: StoreConfig[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="border-collapse text-sm">
         <thead>
           <tr>
+            <th className="border border-slate-200 bg-slate-50 px-3 py-1 text-left font-medium text-slate-600">Quán</th>
             {WEEKDAY_ORDER.map((key) => (
-              <th key={key} className={`border border-slate-200 px-3 py-1 font-medium ${DAY_WEIGHTS[key] > 1 ? "bg-amber-50 text-amber-900" : "bg-slate-50 text-slate-600"}`}>
+              <th key={key} className="border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-600">
                 {WEEKDAY_LABELS_VI[key]}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          <tr>
-            {WEEKDAY_ORDER.map((key) => (
-              <td key={key} className="border border-slate-200 px-3 py-1 text-center font-semibold">
-                {DEFAULT_WORK_HOURS.closedWeekdays[key] ? "nghỉ" : DAY_WEIGHTS[key].toFixed(1).replace(".", ",")}
-              </td>
-            ))}
-          </tr>
+          {stores.map((store) => (
+            <tr key={store.id}>
+              <td className="border border-slate-200 px-3 py-1 font-medium">{store.shortName}</td>
+              {WEEKDAY_ORDER.map((key) => (
+                <td
+                  key={key}
+                  className={`border border-slate-200 px-3 py-1 text-center font-semibold ${store.dayWeights[key] > 1 ? "bg-amber-50 text-amber-900" : ""}`}
+                >
+                  {DEFAULT_WORK_HOURS.closedWeekdays[key] ? "nghỉ" : store.dayWeights[key].toFixed(1).replace(".", ",")}
+                </td>
+              ))}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -62,18 +65,7 @@ function WeekdayTable() {
 const fmtWeight = (weight: number) => weight.toFixed(1).replace(".", ",");
 const fmtRange = (min: number, max: number) => (Number.isFinite(max) ? `${min}–${max}` : `${min}+`);
 
-/** Ngày mở cửa gom theo hệ số: [{ weight: 1, days: [T3,T4] }, { weight: 1,5, days: [T5–CN] }]. */
-function weightGroups(): { weight: number; days: WeekdayKey[] }[] {
-  const groups = new Map<number, WeekdayKey[]>();
-  for (const key of WEEKDAY_ORDER) {
-    if (DEFAULT_WORK_HOURS.closedWeekdays[key]) continue;
-    groups.set(DAY_WEIGHTS[key], [...(groups.get(DAY_WEIGHTS[key]) ?? []), key]);
-  }
-  return [...groups].sort((a, b) => a[0] - b[0]).map(([weight, days]) => ({ weight, days }));
-}
 
-const daysLabel = (days: WeekdayKey[]) =>
-  days.length > 1 ? `${WEEKDAY_SHORT_VI[days[0]]}–${WEEKDAY_SHORT_VI[days[days.length - 1]]}` : WEEKDAY_SHORT_VI[days[0]];
 
 /** Đường nhu cầu trong ngày – lấy thẳng từ DEMAND_PROFILE, cùng nguồn với thuật toán. */
 function DemandCurve() {
@@ -109,8 +101,7 @@ function DemandCurve() {
  * Một dòng cho mỗi khung: mốc (hệ số 1,0) và số người thực tế theo từng nhóm hệ số.
  * Lấy thẳng từ STAFFING_RULES – cùng nguồn với thuật toán và báo cáo Độ phủ.
  */
-function StaffingRulesTable() {
-  const groups = weightGroups();
+function StaffingRulesTable({ store }: { store: StoreConfig }) {
   const cell = "border border-slate-200 px-3 py-1.5";
   return (
     <div className="overflow-x-auto">
@@ -118,38 +109,21 @@ function StaffingRulesTable() {
         <thead>
           <tr className="bg-slate-50 text-left text-slate-600">
             <th className={cell}>Khung</th>
-            <th className={cell}>Mốc</th>
-            <th className={cell}>Theo hệ số?</th>
-            {groups.map((group) => (
-              <th key={group.weight} className={`${cell} text-center ${group.weight > 1 ? "bg-amber-50 text-amber-900" : ""}`}>
-                {daysLabel(group.days)} <span className="font-normal">×{fmtWeight(group.weight)}</span>
-              </th>
-            ))}
+            <th className={cell}>Số người</th>
+            <th className={cell}>Áp dụng</th>
           </tr>
         </thead>
         <tbody>
-          {STAFFING_RULES.map((rule) => (
+          {store.staffingRules.map((rule) => (
             <tr key={rule.label}>
               <td className={cell}>
                 <div className="font-medium text-slate-900">{rule.label}</div>
                 <div className="text-xs text-slate-500">{rule.when}</div>
               </td>
               <td className={`${cell} text-center`}>{fmtRange(rule.minStaff, rule.maxStaff)}</td>
-              <td className={`${cell} text-center`}>
-                {rule.scaled
-                  ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">× hệ số</span>
-                  : <span className="text-xs text-slate-500">cố định</span>}
+              <td className={`${cell} text-xs text-slate-500`}>
+                {rule.weekdays ? rule.weekdays.map((day) => WEEKDAY_SHORT_VI[day]).join(", ") : "mọi ngày mở"}
               </td>
-              {groups.map((group) => {
-                const days = group.days.filter((day) => ruleAppliesOn(rule, day));
-                if (days.length === 0) return <td key={group.weight} className={`${cell} text-center text-slate-400`}>—</td>;
-                const { minStaff, maxStaff } = ruleRange(rule, days[0]);
-                return (
-                  <td key={group.weight} className={`${cell} text-center font-semibold`}>
-                    {fmtRange(minStaff, maxStaff)}
-                  </td>
-                );
-              })}
             </tr>
           ))}
         </tbody>
@@ -165,8 +139,17 @@ export function DocsTab({ stores }: { stores: StoreConfig[] }) {
     .map((store) => ({ store, employee: store.sampleEmployees().find((e) => e.requiredOnHolidays) }))
     .find((entry) => entry.employee);
   const holidayDuty = duty?.employee;
-  const lunch = STAFFING_RULES.find((rule) => rule.label === "Trưa")!;
-  const evening = STAFFING_RULES.find((rule) => rule.label === "Tối")!;
+  // Wer arbeitet in mehr als einem Laden? (personKey ist derselbe Mensch.)
+  const shared = new Map<string, { name: string; stores: StoreConfig[] }>();
+  for (const store of stores) {
+    for (const employee of store.sampleEmployees()) {
+      if (!employee.personKey) continue;
+      const entry = shared.get(employee.personKey) ?? { name: employee.name, stores: [] };
+      entry.stores.push(store);
+      shared.set(employee.personKey, entry);
+    }
+  }
+  const doubleJobs = [...shared.values()].filter((entry) => entry.stores.length > 1);
   return (
     <div className="max-w-3xl space-y-4">
       <div className="rounded-lg bg-slate-900 p-4 text-white sm:p-5">
@@ -179,10 +162,10 @@ export function DocsTab({ stores }: { stores: StoreConfig[] }) {
           ))}
         </ul>
         <p className="mt-2 text-sm text-slate-300">
-          Trang này áp cho <b>cả hai quán</b>: giờ mở, hệ số ngày và quy tắc số người giống hệt nhau. Khác nhau
-          chỉ ở danh sách nhân viên và ở việc quán nào phải có người trực ngày lễ. Mọi tab đều hiện cả hai quán
-          (không có nút chuyển quán); tháng/năm chọn chung ở thanh trên cùng, và Bảng chấm công xuất <b>một
-          file PDF</b> gồm trang của cả hai.
+          Cả {stores.length} quán dùng chung <b>giờ mở</b> và chung <b>luật giờ làm</b>. Khác nhau: ngày nào là
+          ngày đông (mục 2) và số người mỗi khung (mục 3), vì quy mô và doanh thu khác nhau. Mọi tab đều hiện
+          tất cả các quán (không có nút chuyển quán); tháng/năm chọn chung ở thanh trên cùng, và Bảng chấm công
+          xuất <b>một file PDF</b> gồm trang của mọi quán.
         </p>
         <p className="mt-2 text-sm text-slate-300">
           Mô tả đúng thuật toán đang chạy: bảng khung giờ, hệ số và đường nhu cầu lấy thẳng từ code – đổi code
@@ -195,7 +178,15 @@ export function DocsTab({ stores }: { stores: StoreConfig[] }) {
         <ul className="list-disc space-y-1 pl-5">
           <li><b>Giờ mở:</b> Thứ Hai nghỉ (trùng ngày lễ vẫn nghỉ; muốn mở thì đặt „giờ riêng" ở Cài đặt). <b>T3–CN và ngày lễ:</b> {minutesToTime(DEFAULT_WORK_HOURS.perWeekday.tuesday[0].startMinutes)}–{minutesToTime(LUNCH_END)} và {minutesToTime(DEFAULT_WORK_HOURS.perWeekday.tuesday[1].startMinutes)}–22:00. Khoảng 15:00–17:00 quán đóng, không tính giờ công.</li>
           <li><b>Luật giờ làm:</b> tối đa <b>8 giờ công/ngày</b> (mức quán tự đặt, thấp hơn luật 10h); tối đa <b>6 ngày liên tiếp</b>. Trên 6h công nghỉ <b>30′</b>, trên 8h nghỉ <b>60′</b> – giờ nghỉ có mốc cụ thể, bắt đầu sau ít nhất 1h vào ca.</li>
-          <li><b>Hợp đồng là giới hạn cứng:</b> hai quán ký theo <b>giờ mỗi tháng</b> (xem tab Nhân viên). Không ai bị xếp vượt hợp đồng; thiếu thì báo cảnh báo vàng.</li>
+          <li><b>Hợp đồng là giới hạn cứng:</b> các quán ký theo <b>giờ mỗi tháng</b> (xem tab Nhân viên). Không ai bị xếp vượt hợp đồng; thiếu thì báo cảnh báo vàng.</li>
+          {doubleJobs.length > 0 && (
+            <li>
+              <b>Người làm ở hai quán</b> ({doubleJobs.map((entry) => entry.name).join(", ")}): app xếp các quán
+              lần lượt và <b>không xếp trùng ngày</b> — hai quán cách nhau xa, một ngày chỉ làm được một nơi.
+              Vì vậy tổng giờ hai nơi cộng lại phải vừa với số ngày quán mở; nếu không, phần thiếu hiện ở
+              cảnh báo vàng của quán xếp sau.
+            </li>
+          )}
           <li><b>Luôn có người tới 15:00 và tới 22:00</b> — hai khung „Chốt ca trưa" và „Đóng cửa" ở mục 3.</li>
           {holidayDuty && (
             <li><b>{duty?.store.shortName}: ngày lễ phải có {holidayDuty.name} trong ca</b> — bật ở tab Nhân viên (ô „Trực ngày lễ"), thuật toán giữ chỗ cho người đó trước rồi mới chia phần còn lại. Quán còn lại không có yêu cầu này.</li>
@@ -212,7 +203,7 @@ export function DocsTab({ stores }: { stores: StoreConfig[] }) {
         </p>
         <pre className="overflow-x-auto rounded bg-slate-100 p-3 text-xs text-slate-800">{`Giờ công ngày = giờ công cả tuần × (hệ số ngày × giờ mở cửa)
               ÷ Σ (hệ số × giờ mở cửa) các ngày mở trong tuần`}</pre>
-        <WeekdayTable />
+        <WeekdayTable stores={stores} />
         <ul className="list-disc space-y-1 pl-5">
           <li>Hợp đồng <b>theo tháng</b> được chia cho các tuần theo số ngày mở, rồi mới chia cho từng ngày theo hệ số.</li>
           <li>Hệ số 1,5 là <b>mục tiêu</b>, không phải tỷ lệ bảo đảm: tổng giờ hợp đồng là cố định và khung tối
@@ -224,11 +215,19 @@ export function DocsTab({ stores }: { stores: StoreConfig[] }) {
 
       <Section title="3. Khung giờ và mục tiêu nhân sự">
         <p>
-          Mỗi khung có một <b>mốc</b> số người. Thiếu hoặc vượt các khung này bị phạt nặng nhất trong thuật toán
-          và hiện đỏ trong báo cáo Độ phủ. Vorgabe của quán: „1 ca khoảng 4–5 người", nên khung trưa là
-          {" "}{fmtRange(lunch.minStaff, lunch.maxStaff)} và khung tối {fmtRange(evening.minStaff, evening.maxStaff)} người.
+          Mỗi khung có <b>số người tối thiểu và tối đa</b>. Thiếu hoặc vượt bị phạt nặng nhất trong thuật toán và
+          hiện đỏ trong báo cáo Độ phủ. Yêu cầu của chủ quán là „1 ca khoảng 4–5 người"; quán Nieu 37 ít người
+          hơn nên các mốc thấp hơn một người. Hai khung „Chốt ca trưa" và „Đóng cửa" là <b>quy tắc cứng</b>:
+          luôn còn ít nhất một người tới 15:00 và tới 22:00.
         </p>
-        <StaffingRulesTable />
+        <div className="space-y-4">
+          {stores.map((store) => (
+            <div key={store.id}>
+              <div className="mb-1 text-sm font-semibold text-slate-800">{store.name}</div>
+              <StaffingRulesTable store={store} />
+            </div>
+          ))}
+        </div>
         <p className="text-slate-600">
           „Chốt ca trưa" ({minutesToTime(14 * 60 + 30)}–{minutesToTime(LUNCH_END)}) và „Đóng cửa" ({minutesToTime(CLOSING_START)}–22:00)
           là hai quy tắc <b>cứng</b>: luôn phải còn ít nhất một người.

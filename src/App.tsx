@@ -37,7 +37,8 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
   // bewusst KEIN Umschalten, der Betreiber sieht immer beide Läden.
   const shin = useSchedule(STORES[0].id);
   const coco = useSchedule(STORES[1].id);
-  const stores = [shin, coco];
+  const nieu = useSchedule(STORES[2].id);
+  const stores = [shin, coco, nieu];
   // Monat/Jahr sind für beide gleich (der Ausdruck muss zusammenpassen). Der
   // Kopf steuert beide; angezeigt wird der Stand der ersten Filiale.
   const primary = shin;
@@ -51,7 +52,30 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
     setDocsOpen(false);
   };
 
-  /** Monat/Jahr für BEIDE Filialen setzen. */
+  /**
+   * Alle Läden nacheinander planen. Wer in zwei Läden arbeitet (personKey),
+   * ist an seinen schon verplanten Tagen im nächsten Laden blockiert – die
+   * Läden liegen zu weit auseinander für zwei Dienste am selben Tag.
+   */
+  const generateAll = (target: { year: number; month: number }) => {
+    const busyByPerson = new Map<string, Set<string>>();
+    for (const s of stores) {
+      const blocked: Record<string, string[]> = {};
+      for (const employee of s.schedule.employees) {
+        const dates = employee.personKey ? busyByPerson.get(employee.personKey) : undefined;
+        if (dates?.size) blocked[employee.id] = [...dates];
+      }
+      const shifts = s.generate(target, blocked);
+      for (const employee of s.schedule.employees) {
+        if (!employee.personKey) continue;
+        const dates = busyByPerson.get(employee.personKey) ?? new Set<string>();
+        for (const shift of shifts) if (shift.employeeId === employee.id) dates.add(shift.date);
+        busyByPerson.set(employee.personKey, dates);
+      }
+    }
+  };
+
+  /** Monat/Jahr für ALLE Filialen setzen. */
   const setPeriod = (patch: { year?: number; month?: number }) => {
     for (const s of stores) s.updateMeta(patch);
   };
@@ -225,7 +249,7 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
           }}
           onConfirm={(target) => {
             setGenDialogOpen(false);
-            for (const s of stores) s.generate(target);
+            generateAll(target);
             openTab("dienstplan");
           }}
         />

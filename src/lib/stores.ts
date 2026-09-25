@@ -9,8 +9,43 @@
 // ============================================================================
 
 import type { Employee, Schedule } from "../types";
-import { cocoEmployees, shinEmployees } from "./sampleData";
+import { cocoEmployees, nieuEmployees, shinEmployees } from "./sampleData";
+import { DAY_WEIGHTS, type WeekdayKey } from "./demand";
+import { STAFFING_RULES, clip, type StaffingRule } from "./staffing";
 import { DEFAULT_WORK_HOURS } from "./workHours";
+
+/** Starke Tage bei Nieu: erst ab FREITAG (Shin/Coco schon ab Donnerstag). */
+const NIEU_DAY_WEIGHTS: Record<WeekdayKey, number> = {
+  monday: 1.0, // Ruhetag
+  tuesday: 1.0,
+  wednesday: 1.0,
+  thursday: 1.0,
+  friday: 1.5,
+  saturday: 1.5,
+  sunday: 1.5,
+};
+
+/**
+ * Nieu hat sechs Leute und kleinere Umsätze (1.000–1.500 € normal, 3.000 € an
+ * starken Tagen) – die Spannen liegen deshalb eine Person unter Shin/Coco.
+ * Die harten Regeln bleiben: bis 15:00 und bis 22:00 ist immer jemand da.
+ */
+const NIEU_STAFFING_RULES: readonly StaffingRule[] = [
+  {
+    label: "Trong giờ mở cửa", when: "suốt mỗi khung mở", minStaff: 1, maxStaff: Infinity, scaled: false,
+    windows: (blocks) => blocks.map((block) => ({ startMinutes: block.startMinutes, endMinutes: block.endMinutes })),
+  },
+  {
+    label: "Chốt ca trưa", when: "14:30–15:00", minStaff: 1, maxStaff: Infinity, scaled: false,
+    windows: clip(14 * 60 + 30, 15 * 60),
+  },
+  { label: "Trưa", when: "12:00–14:00", minStaff: 2, maxStaff: 6, scaled: false, windows: clip(12 * 60, 14 * 60) },
+  { label: "Tối", when: "18:00–21:00", minStaff: 3, maxStaff: 6, scaled: false, windows: clip(18 * 60, 21 * 60) },
+  {
+    label: "Đóng cửa", when: "21:30–22:00", minStaff: 1, maxStaff: Infinity, scaled: false,
+    windows: clip(21 * 60 + 30, 22 * 60),
+  },
+];
 
 export type StoreConfig = {
   /** Schlüssel der Zeile in store_data – nach dem Anlegen NICHT mehr ändern. */
@@ -21,6 +56,10 @@ export type StoreConfig = {
   address: string;
   /** Belegschaft beim allerersten Öffnen. */
   sampleEmployees: () => Employee[];
+  /** Welche Wochentage stark sind (Umsatz) – steuert die Stundenverteilung. */
+  dayWeights: Record<WeekdayKey, number>;
+  /** Wie viele Leute wann im Haus sein sollen. */
+  staffingRules: readonly StaffingRule[];
 };
 
 export const STORES: StoreConfig[] = [
@@ -30,6 +69,8 @@ export const STORES: StoreConfig[] = [
     shortName: "Shin",
     address: "Hans-Thoma-Str. 2, 76448 Durmersheim",
     sampleEmployees: shinEmployees,
+    dayWeights: DAY_WEIGHTS,
+    staffingRules: STAFFING_RULES,
   },
   {
     id: "coco",
@@ -37,6 +78,17 @@ export const STORES: StoreConfig[] = [
     shortName: "Coco",
     address: "Bernhäuser Hauptstraße 17, 70794 Filderstadt",
     sampleEmployees: cocoEmployees,
+    dayWeights: DAY_WEIGHTS,
+    staffingRules: STAFFING_RULES,
+  },
+  {
+    id: "nieu",
+    name: "Nieu 37 Restaurant",
+    shortName: "Nieu 37",
+    address: "Radgasse 9, 73430 Aalen",
+    sampleEmployees: nieuEmployees,
+    dayWeights: NIEU_DAY_WEIGHTS,
+    staffingRules: NIEU_STAFFING_RULES,
   },
 ];
 
