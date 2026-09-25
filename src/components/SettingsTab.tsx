@@ -231,7 +231,7 @@ export function SettingsTab({ store }: { store: UseScheduleReturn }) {
           </div>
 
           <div className="md:col-span-2 text-xs text-slate-500">
-            Tháng/năm chọn chung cho cả 2 quán ở thanh trên cùng — bản in của hai quán phải cùng kỳ.
+            Tháng/năm chọn chung cho mọi quán ở thanh trên cùng — bản in của hai quán phải cùng kỳ.
           </div>
         </div>
       </section>

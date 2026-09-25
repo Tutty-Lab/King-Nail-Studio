@@ -133,8 +133,8 @@ function StaffingRulesTable({ store }: { store: StoreConfig }) {
 }
 
 export function DocsTab({ stores }: { stores: StoreConfig[] }) {
-  // Cả hai quán dùng chung giờ mở và chung quy tắc, nên tài liệu là MỘT trang.
-  // Chỗ khác nhau duy nhất: danh sách nhân viên và ai phải trực ngày lễ.
+  // Các quán dùng chung giờ mở và luật giờ làm; khác nhau ở hệ số ngày, số
+  // người mỗi khung, danh sách nhân viên và ai phải trực ngày lễ.
   const duty = stores
     .map((store) => ({ store, employee: store.sampleEmployees().find((e) => e.requiredOnHolidays) }))
     .find((entry) => entry.employee);

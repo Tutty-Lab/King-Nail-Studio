@@ -34,13 +34,13 @@ export default function App() {
 function MainApp({ onLogout }: { onLogout: () => void }) {
   // Beide Filialen laufen gleichzeitig – jede mit eigenem State, eigener
   // Persistenz und eigener Sync. Angezeigt werden sie untereinander; es gibt
-  // bewusst KEIN Umschalten, der Betreiber sieht immer beide Läden.
+  // bewusst KEIN Umschalten, der Betreiber sieht immer alle Läden.
   const shin = useSchedule(STORES[0].id);
   const coco = useSchedule(STORES[1].id);
   const nieu = useSchedule(STORES[2].id);
   const stores = [shin, coco, nieu];
-  // Monat/Jahr sind für beide gleich (der Ausdruck muss zusammenpassen). Der
-  // Kopf steuert beide; angezeigt wird der Stand der ersten Filiale.
+  // Monat/Jahr sind für alle gleich (der Ausdruck muss zusammenpassen). Der
+  // Kopf steuert alle; angezeigt wird der Stand der ersten Filiale.
   const primary = shin;
 
   const [tab, setTab] = useState<TabId>("einstellungen");
@@ -95,10 +95,10 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
     const warn = allErrors.filter((e) => e.severity === "warning").length;
     setToast(
       fehler > 0
-        ? `Đã tạo lịch 2 quán — nhưng còn ${fehler} lỗi, xem chi tiết ở phần trạng thái.`
+        ? `Đã tạo lịch ${stores.length} quán — nhưng còn ${fehler} lỗi, xem chi tiết ở phần trạng thái.`
         : warn > 0
-          ? `✓ Đã tạo lịch 2 quán (còn ${warn} cảnh báo thiếu giờ — bấm (i) để xem).`
-          : "✓ Đã tạo lịch mới cho cả 2 quán — hợp lệ, đúng giờ hợp đồng.",
+          ? `✓ Đã tạo lịch ${stores.length} quán (còn ${warn} cảnh báo thiếu giờ — bấm (i) để xem).`
+          : `✓ Đã tạo lịch mới cho cả ${stores.length} quán — hợp lệ, đúng giờ hợp đồng.`,
     );
     const t = window.setTimeout(() => setToast(null), 5000);
     return () => window.clearTimeout(t);
@@ -135,7 +135,7 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {/* Tháng/năm dùng chung cho cả 2 quán – bản in phải cùng kỳ. */}
+            {/* Tháng/năm dùng chung cho mọi quán – bản in phải cùng kỳ. */}
             <div className="inline-flex items-center gap-1.5" aria-label="Chọn kỳ">
               <select
                 aria-label="Tháng"
@@ -175,7 +175,7 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
             </button>
             <button
               onClick={() => {
-                if (confirm("Xoá toàn bộ dữ liệu của cả 2 quán?")) {
+                if (confirm(`Xoá toàn bộ dữ liệu của cả ${stores.length} quán?`)) {
                   for (const s of stores) s.resetAll();
                 }
               }}
