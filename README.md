@@ -75,7 +75,7 @@ eines Tages folgt aus den Verträgen. Gemessen über alle zwölf Monate 2026:
 | Filiale | fehlende halbe Stunden in der Hauptzeit | wo |
 |---|---|---|
 | Schloss Arkaden | 23 im Jahr (höchstens 13 im Monat) | nur samstags, dritte Person |
-| Papenstieg | 57 im Jahr (höchstens 12 im Monat) | vor allem Mo und Mi |
+| Papenstieg | 34 im Jahr (höchstens 14 im Monat) | vor allem Mo |
 
 Grund: der Monat hat in Papenstieg 439 Vertragsstunden, und die reine
 Mindestbesetzung (Abdeckung + zweite Person in der Hauptzeit) kostet schon rund
@@ -94,13 +94,17 @@ Zwei Schritte im Planer holen hier das Meiste heraus (siehe
    Erst der Rest wird nach Mo 1,2 … Sa 2,0 verteilt. Ohne das bekam der Dienstag
    zu wenig und der Freitag mehr, als er brauchte.
 2. **Stundentausch zwischen zwei Personen** (`tradeMinutes`): 30 Minuten bis zu
-   einer ganzen Schicht wandern an einem knappen Tag von A zu B und am selben
-   Tag einer anderen Woche zurück – Wochen- und Monatssumme bleiben exakt. Das
-   löst den häufigsten Fall: der Tag hat genug Stunden, sie liegen nur bei der
-   falschen Person (ein 3-Stunden-Dienst, der um 18:30 endet, statt einer
+   einer ganzen Schicht wandern an einem knappen Tag von A zu B und an einem
+   anderen Tag derselben Woche zurück – Wochen- und Monatssumme bleiben exakt.
+   Das löst den häufigsten Fall: der Tag hat genug Stunden, sie liegen nur bei
+   der falschen Person (ein 3-Stunden-Dienst, der um 18:30 endet, statt einer
    längeren Schicht bis 19:00).
+3. **Fünf-Tage-Woche für alle** (`maxDaysPerWeek` in `sampleData.ts`): ohne diese
+   Grenze streut der Planer kleine Verträge als 3-Stunden-Dienste über alle
+   sechs Öffnungstage. Mit ihr werden die Dienste länger, liegen besser in der
+   Hauptzeit – und jede Person hat einen freien Tag zusätzlich zum Sonntag.
 
-Zusammen sank die Zahl der roten halben Stunden in Papenstieg von 108 auf 57.
+Zusammen sank die Zahl der roten halben Stunden in Papenstieg von 108 auf 34.
 
 **Was das Budget NICHT hergibt:** in Papenstieg liegen alle Tage nahe an der
 Mindestbesetzung, um 17 Uhr stehen an jedem Wochentag genau 2 Personen. Die

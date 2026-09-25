@@ -230,11 +230,29 @@ describe("Tagesgewichte", () => {
   });
 });
 
-describe("Feste Wochen für die Vollzeitkräfte", () => {
-  it.each(TEAMS)("%s: höchstens 5 Arbeitstage je Woche, und der Rhythmus wiederholt sich", (_name, store) => {
+describe("Feste Wochen und freie Tage", () => {
+  it.each(TEAMS)("%s: niemand arbeitet mehr als 5 Tage je Woche", (_name, store) => {
+    for (const month of MONTHS) {
+      const shifts = planOf(2026, month, store);
+      for (const employee of teamOf(store)) {
+        const proWoche = new Map<string, Set<string>>();
+        for (const shift of shifts.filter((s) => s.employeeId === employee.id)) {
+          const week = weekStartOf(shift.date);
+          proWoche.set(week, (proWoche.get(week) ?? new Set()).add(shift.date));
+        }
+        for (const [week, tage] of proWoche) {
+          expect(tage.size, `${employee.name} ${week}`).toBeLessThanOrEqual(employee.maxDaysPerWeek ?? 6);
+        }
+      }
+    }
+  });
+
+  it.each(TEAMS)("%s: die Vollzeitkräfte haben jede volle Woche denselben Rhythmus", (_name, store) => {
     const shifts = planOf(2026, 9, store);
     const voll = fullWeeksOf(openDatesOf(2026, 9, store));
-    for (const employee of teamOf(store).filter((e) => e.maxDaysPerWeek)) {
+    // Nur wer voll beschäftigt ist, füllt seine fünf Tage auch wirklich jede
+    // Woche; die kleinen Verträge arbeiten weniger Tage und dürfen wechseln.
+    for (const employee of teamOf(store).filter((e) => e.targetMinutes >= 130 * 60)) {
       const muster = new Map<string, number>();
       for (const [week, days] of voll) {
         const worked = days.filter((date) => shifts.some((s) => s.employeeId === employee.id && s.date === date));

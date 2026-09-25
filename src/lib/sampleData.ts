@@ -34,36 +34,42 @@ export function makeWeekly(
  * Vollzeit, 55–86 h Teilzeit, 43 h Minijob – das ändert nur die Beschriftung
  * auf dem Stundenzettel, nicht die Planung.
  *
- * Die Vollzeitkräfte (150/150/130 h) bekommen höchstens FÜNF Arbeitstage je
- * Woche. Weil die Tagesgewichte jede Woche gleich sind, wiederholt sich ihr
- * Rhythmus dadurch von Woche zu Woche – „lịch cố định" wie gewünscht –, und es
- * bleiben Tage frei, an denen die Teilzeitkräfte die Hauptzeit verstärken.
+ * JEDE Person arbeitet höchstens FÜNF Tage je Woche (maxDaysPerWeek).
+ *  - Vollzeit (150/150/130 h): weil die Tagesgewichte jede Woche gleich sind,
+ *    wiederholt sich ihr Rhythmus dadurch von Woche zu Woche – „lịch cố định"
+ *    wie gewünscht – und es bleiben Tage frei für die Teilzeitkräfte.
+ *  - Teilzeit/Minijob: ohne die Grenze streut der Planer die wenigen Stunden
+ *    über ALLE sechs Öffnungstage (3-Stunden-Dienste an 25 von 25 Tagen). Mit
+ *    der Grenze werden die Dienste länger und liegen besser in der Hauptzeit;
+ *    in Papenstieg sinken die unterbesetzten halben Stunden dadurch von 57 auf
+ *    34 im Jahr. Wer doch sechs Tage arbeiten soll, wird im Tab „Nhân viên"
+ *    umgestellt.
  */
 export function arkadenEmployees(): Employee[] {
   return [
     { ...makeEmployee("arkaden-1", "Nguyen Xuan Manh", "VOLLZEIT", 150), maxDaysPerWeek: 5 },
     { ...makeEmployee("arkaden-2", "Pham Van Nha", "VOLLZEIT", 150), maxDaysPerWeek: 5 },
     { ...makeEmployee("arkaden-3", "Nguyen Quang Huy", "VOLLZEIT", 130), maxDaysPerWeek: 5 },
-    makeEmployee("arkaden-4", "Nguyen Thi Thu Hang", "TEILZEIT", 72),
-    makeEmployee("arkaden-5", "Do Thuy Hang", "TEILZEIT", 58),
-    makeEmployee("arkaden-6", "Nguyen Thi Khanh Huyen", "TEILZEIT", 55),
-    makeEmployee("arkaden-7", "Dinh Thi Duyen", "MINIJOB", 43),
+    { ...makeEmployee("arkaden-4", "Nguyen Thi Thu Hang", "TEILZEIT", 72), maxDaysPerWeek: 5 },
+    { ...makeEmployee("arkaden-5", "Do Thuy Hang", "TEILZEIT", 58), maxDaysPerWeek: 5 },
+    { ...makeEmployee("arkaden-6", "Nguyen Thi Khanh Huyen", "TEILZEIT", 55), maxDaysPerWeek: 5 },
+    { ...makeEmployee("arkaden-7", "Dinh Thi Duyen", "MINIJOB", 43), maxDaysPerWeek: 5 },
   ];
 }
 
 /**
  * Cơ sở 2 – King Nail Papenstieg, Papenstieg 8, 38100 Braunschweig.
  *
- * Gleiche Annahme zur Anstellungsart. Pham Duy Thang (160 h) ist die feste
- * Vollzeitkraft des Ladens und arbeitet höchstens fünf Tage je Woche.
+ * Gleiche Annahme zur Anstellungsart, gleiche Grenze von fünf Arbeitstagen je
+ * Woche. Pham Duy Thang (160 h) ist die feste Vollzeitkraft des Ladens.
  */
 export function papenstiegEmployees(): Employee[] {
   return [
     { ...makeEmployee("papen-1", "Pham Duy Thang", "VOLLZEIT", 160), maxDaysPerWeek: 5 },
-    makeEmployee("papen-2", "Bui Thi Huyen", "TEILZEIT", 86),
-    makeEmployee("papen-3", "Nguyen Trong Hanh", "TEILZEIT", 86),
-    makeEmployee("papen-4", "Nguyen Tien Long", "TEILZEIT", 64),
-    makeEmployee("papen-5", "Tang Thi Nhung", "MINIJOB", 43),
+    { ...makeEmployee("papen-2", "Bui Thi Huyen", "TEILZEIT", 86), maxDaysPerWeek: 5 },
+    { ...makeEmployee("papen-3", "Nguyen Trong Hanh", "TEILZEIT", 86), maxDaysPerWeek: 5 },
+    { ...makeEmployee("papen-4", "Nguyen Tien Long", "TEILZEIT", 64), maxDaysPerWeek: 5 },
+    { ...makeEmployee("papen-5", "Tang Thi Nhung", "MINIJOB", 43), maxDaysPerWeek: 5 },
   ];
 }
 

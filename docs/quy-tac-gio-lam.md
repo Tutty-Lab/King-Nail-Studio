@@ -43,10 +43,13 @@ số ngày, nhưng **giờ mở khác nhau**; dữ liệu tách riêng theo từ
   - Arkaden: cao điểm T2–T6 **2–5 người**, T7 **3–6 người**.
   - Papenstieg: cao điểm **T2–T6 2–4 người**, T7 (11:00–18:00) **2–4 người**.
 - **Hệ số ngày (cả hai cơ sở):** T2 1,2 · T3 1,0 · T4 1,2 · T5 1,2 · **T6 2,0 · T7 2,0**.
-- **Lịch cố định cho người nhiều giờ:** Nguyen Xuan Manh, Pham Van Nha, Nguyen
-  Quang Huy (Arkaden) và Pham Duy Thang (Papenstieg) **tối đa 5 ngày/tuần**; các
-  tuần đầy đủ trong tháng lặp lại đúng những thứ đó. Người ít giờ dùng để bù cao
-  điểm và ngày đông.
+- **Mọi người tối đa 5 ngày/tuần** (đặt ở tab Nhân viên, ô „Số ngày/tuần"):
+  - Người nhiều giờ (Manh, Nhã, Huy ở Arkaden; Thắng ở Papenstieg) nhờ vậy có
+    **lịch lặp lại giống nhau** giữa các tuần đầy đủ.
+  - Người ít giờ: nếu không giới hạn, app rải 3 giờ mỗi ngày suốt 6 ngày (có bạn
+    làm đủ 25/25 ngày mở). Giới hạn 5 ngày làm ca dài hơn, rơi đúng cao điểm hơn
+    — Papenstieg giảm từ 57 xuống 34 ô thiếu mỗi năm — và ai cũng có thêm một
+    ngày nghỉ ngoài Chủ nhật.
 - **Ngày làm 3–8 giờ công** (thấp hơn mức luật 10h). Tiệm mở liên tục nên **mỗi
   ngày mỗi người chỉ một ca**, không có ca gãy; ca không dưới 3h.
 - **Mọi giờ nằm trên mốc 30 phút**; phần lẻ của tuần đầu/cuối tháng dồn sang tuần
@@ -63,7 +66,7 @@ số ngày, nhưng **giờ mở khác nhau**; dữ liệu tách riêng theo từ
 - **Giới hạn đã biết:** mức 2 người không phải lúc nào cũng đủ giờ để trả. Ở
   Papenstieg riêng mức tối thiểu đã ngốn ~86h trong 101h mỗi tuần. Đo cả năm
   2026 (sau tối ưu): Arkaden thiếu **23 ô 30 phút** (chỉ T7, người thứ ba),
-  Papenstieg **57 ô** (chủ yếu T2 và T4) — trước tối ưu là 108 ô. Báo cáo
+  Papenstieg **34 ô** (chủ yếu T2) — trước tối ưu là 108 ô. Báo cáo
   **Độ phủ** hiện đỏ chỗ đó; việc **phủ kín (≥ 1 người) thì luôn đúng** —
   trong thuật toán, để tiệm trống bị phạt gấp 10 lần thiếu người cao điểm.
 - **Đánh đổi ở Papenstieg:** vì sát mức tối thiểu, mọi ngày đều ~2 người lúc 17h
