@@ -213,9 +213,14 @@ function dayModel(blocks: DayBlocks, weekday: WeekdayKey, targetHours: number, c
 
 /**
  * Day cost from headcounts per 30-minute slot (shifts and pauses lie on that grid):
+ *  - an EMPTY shop during opening hours costs ten times a normal shortfall,
  *  - staffing windows: every missing/extra person-minute costs 500,
  *  - demand curve: squared deviation from the slot target (smooth "mountain"),
  *  - paid hours: squared deviation from the day's weighted hours.
+ *
+ * Ohne den ersten Punkt sind beide Lücken gleich teuer, und der Planer holt
+ * jemanden aus einer schwach besetzten Randstunde in die Hauptzeit – dann steht
+ * niemand mehr im Laden. Offen mit einer Person ist immer besser als zu.
  */
 function dayCost(shifts: Shift[], blocks: DayBlocks, weekday: WeekdayKey, targetHours: number | undefined, ctx: Ctx): number {
   if (blocks.length === 0) return 0;
@@ -230,6 +235,7 @@ function dayCost(shifts: Shift[], blocks: DayBlocks, weekday: WeekdayKey, target
     for (let k = 0; k < window.slots.length; k++) {
       const staff = counts[window.slots[k]];
       cost += (Math.max(0, window.minStaff - staff) + Math.max(0, staff - window.maxStaff)) * window.overlap[k] * 500;
+      if (staff === 0 && window.minStaff > 0) cost += window.overlap[k] * 4500;
     }
   }
   for (let i = 0; i < counts.length; i++) cost += (counts[i] - model.targets[i]) ** 2 * SLOT_DEVIATION_COST;

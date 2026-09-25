@@ -28,9 +28,7 @@ die Bảng chấm công gibt EINE PDF mit den Seiten beider Studios aus.
 - **Die ganze Öffnungszeit ist besetzt** – von der ersten bis zur letzten Minute
   mindestens eine Person (harte Regel `Trong giờ mở cửa` in beiden Studios).
 - **Hauptzeit:** Mo–Fr 15:00–19:00, Sa 11:00–19:00. Dort stehen mehr Leute:
-  Arkaden 2 Personen (samstags 3), Papenstieg 2 Personen an Fr/Sa.
-  In Papenstieg reichen die 439 Vertragsstunden Mo–Do nicht für eine zweite
-  Person über die volle Hauptzeit; dort zieht nur die Nachfragekurve.
+  Arkaden 2 Personen (samstags 3), Papenstieg 2 Personen (auch samstags).
 - **Tagesgewichte** (für beide gleich): Mo 1,2 · Di 1,0 · Mi 1,2 · Do 1,2 ·
   **Fr 2,0 · Sa 2,0**. Freitag und Samstag sind die stärksten Tage.
 - **Feste Wochen für die Vollzeitkräfte:** Nguyen Xuan Manh, Pham Van Nha,
@@ -71,12 +69,24 @@ Besetzungsregeln kommen je Filiale aus `src/lib/stores.ts`. Danach:
 - **Feinschliff je Tag**: Lage der Dienste und der Pausen nach der echten
   Besetzung; die Pause liegt nie in der Hauptzeit.
 
-Bekannte Grenze: in einer **angebrochenen Woche am Monatsrand** (z. B. ein
-einzelner Samstag am Monatsersten) gehört nur ein Teil der Woche zum Monat. Das
-Stundenbudget dieses Tages ist entsprechend klein und reicht rechnerisch nicht
-immer für die zweite Person über die ganze Hauptzeit; der Bericht „Độ phủ" zeigt
-solche halben Stunden rot an. Die Abdeckung (mindestens eine Person) gilt
-trotzdem immer.
+**Bekannte Grenze – die Hauptzeit ist nicht überall bezahlbar.** Das Budget
+eines Tages folgt aus den Verträgen. Gemessen über alle zwölf Monate 2026:
+
+| Filiale | fehlende halbe Stunden in der Hauptzeit | wo |
+|---|---|---|
+| Schloss Arkaden | 24 im Jahr (höchstens 13 im Monat) | nur samstags, dritte Person |
+| Papenstieg | 108 im Jahr (höchstens 21 im Monat) | vor allem Mo und Di |
+
+Grund: in Papenstieg hat ein Dienstag rund 12,3 h Budget, gebraucht werden
+10 h Abdeckung + 4 h zweite Person = 14 h. Dasselbe passiert in einer
+**angebrochenen Woche am Monatsrand**, weil dort nur ein Teil der Woche zum
+Monat gehört. Der Bericht „Độ phủ" zeigt diese halben Stunden rot an. Die
+Abdeckung (mindestens eine Person, kein leeres Studio) gilt **immer** – sie ist
+im Planer zehnmal so teuer bewertet wie eine Lücke in der Hauptzeit.
+
+Wer die roten Stellen schließen will, hat drei Wege: mehr Vertragsstunden in
+Papenstieg, die Zwei-Personen-Pflicht am Dienstag auf 17:00–19:00 kürzen, oder
+sie dienstags ganz weglassen (dann bleiben 74 statt 108 halbe Stunden).
 
 ## PDF
 

@@ -81,11 +81,16 @@ export const ARKADEN_STAFFING_RULES: readonly StaffingRule[] = [
 /**
  * Cơ sở 2 – Papenstieg (439 Vertragsstunden, offen 09:00–19:00, Sa bis 18:00).
  *
- * Kleineres Team, deshalb niedrigere Untergrenzen: Mo–Do reicht das Budget
- * NICHT für zwei Personen über die volle Hauptzeit (Dienstag rund 11,7 h,
- * die Abdeckung allein kostet schon 10 h). Zwei Personen sind daher an den
- * starken Tagen Freitag und Samstag verlangt; an den übrigen Tagen sorgt die
- * Nachfragekurve dafür, dass die Leute trotzdem in die Hauptzeit fallen.
+ * Dieselbe Vorgabe wie in Arkaden: in der Hauptzeit zwei Personen, samstags
+ * ebenfalls zwei (kleineres Team, kürzerer Samstag).
+ *
+ * ACHTUNG, das Budget ist knapp: das Tagesbudget folgt aus den Verträgen, und
+ * ein Dienstag hat nur rund 12,3 h – die Abdeckung 09:00–19:00 kostet allein
+ * 10 h, die zweite Person von 15 bis 19 Uhr weitere 4 h. An Dienstagen (und
+ * gelegentlich montags) fehlt deshalb rechnerisch eine halbe bis anderthalb
+ * Stunden; der Planer lässt dann in der Hauptzeit eine Lücke, NIE aber bei der
+ * Abdeckung. Der Bericht „Độ phủ" zeigt diese Stellen rot an. Wer sie schließen
+ * will, braucht mehr Vertragsstunden in Papenstieg.
  */
 export const PAPENSTIEG_STAFFING_RULES: readonly StaffingRule[] = [
   {
@@ -93,8 +98,8 @@ export const PAPENSTIEG_STAFFING_RULES: readonly StaffingRule[] = [
     windows: wholeDay,
   },
   {
-    label: "Cao điểm T6", when: "15:00–19:00", minStaff: 2, maxStaff: 4, scaled: false,
-    weekdays: ["friday"], windows: clip(PEAK_START, PEAK_END),
+    label: "Cao điểm T2–T6", when: "15:00–19:00", minStaff: 2, maxStaff: 4, scaled: false,
+    weekdays: WERKTAGE, windows: clip(PEAK_START, PEAK_END),
   },
   {
     label: "Cao điểm T7", when: "11:00–18:00", minStaff: 2, maxStaff: 4, scaled: false,

@@ -41,9 +41,7 @@ số ngày, nhưng **giờ mở khác nhau**; dữ liệu tách riêng theo từ
 - **Phủ kín giờ mở cửa** — mọi phút mở cửa luôn có **ít nhất 1 người** (quy tắc cứng).
 - **Cao điểm:** T2–T6 **15:00–19:00**, T7 **11:00–19:00**.
   - Arkaden: cao điểm T2–T6 **2–5 người**, T7 **3–6 người**.
-  - Papenstieg: cao điểm **T6 và T7 2–4 người**. T2–T5 chỉ đặt mức 1 vì tổng hợp
-    đồng 439h/tháng không đủ giờ cho hai người suốt 15:00–19:00; đường nhu cầu
-    vẫn kéo người về khung chiều.
+  - Papenstieg: cao điểm **T2–T6 2–4 người**, T7 (11:00–18:00) **2–4 người**.
 - **Hệ số ngày (cả hai cơ sở):** T2 1,2 · T3 1,0 · T4 1,2 · T5 1,2 · **T6 2,0 · T7 2,0**.
 - **Lịch cố định cho người nhiều giờ:** Nguyen Xuan Manh, Pham Van Nha, Nguyen
   Quang Huy (Arkaden) và Pham Duy Thang (Papenstieg) **tối đa 5 ngày/tuần**; các
@@ -53,9 +51,15 @@ số ngày, nhưng **giờ mở khác nhau**; dữ liệu tách riêng theo từ
   ngày mỗi người chỉ một ca**, không có ca gãy; ca không dưới 3h.
 - **Mọi giờ nằm trên mốc 30 phút**; phần lẻ của tuần đầu/cuối tháng dồn sang tuần
   kề thay vì tạo ca 1–2 giờ.
-- **Giới hạn đã biết:** tuần bị cắt ở đầu/cuối tháng có ít giờ nên có lúc thiếu
-  người thứ hai trong cao điểm (30 phút lẻ); báo cáo **Độ phủ** hiện đỏ chỗ đó.
-  Việc phủ kín (≥ 1 người) thì luôn đúng.
+- **Giới hạn đã biết:** mức 2 người không phải lúc nào cũng đủ giờ để trả.
+  Ngân sách giờ của một ngày do hợp đồng quyết định: ở Papenstieg thứ Ba chỉ có
+  ~12,3h, trong khi phủ 09:00–19:00 đã hết 10h, thêm người thứ hai 15:00–19:00
+  là 14h. Đo cả năm 2026: Arkaden thiếu 24 ô 30 phút (chỉ T7, người thứ ba),
+  Papenstieg 108 ô (chủ yếu T2 và T3). Tuần bị cắt ở đầu/cuối tháng cũng vậy.
+  Báo cáo **Độ phủ** hiện đỏ chỗ đó; việc **phủ kín (≥ 1 người) thì luôn đúng** —
+  trong thuật toán, để tiệm trống bị phạt gấp 10 lần thiếu người cao điểm.
+  Muốn hết đỏ: tăng giờ hợp đồng ở Papenstieg, hoặc rút mức 2 người của thứ Ba
+  còn 17:00–19:00, hoặc bỏ hẳn mức 2 người của thứ Ba (còn 74 ô).
 
 > Các quy tắc này là vận hành của tiệm, không phải luật — có thể chỉnh theo từng
 > cơ sở (số người tối thiểu, khung giờ cao điểm, số ngày mở…). Khi đổi, nhớ

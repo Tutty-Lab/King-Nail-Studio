@@ -249,9 +249,10 @@ Chủ tiệm cho: <b>T2 1,2 · T3 1,0 · T4 1,2 · T5 1,2 · T6 2,0 · T7 2,0</b
 Mỗi khung có <b>số người tối thiểu và tối đa</b>. Thiếu hoặc vượt bị phạt nặng nhất trong thuật toán và
           hiện đỏ trong báo cáo Độ phủ. Yêu cầu của chủ tiệm: <b>phủ kín giờ mở cửa</b> và <b>đông người vào
           cao điểm</b> ({minutesToTime(PEAK_START)}–{minutesToTime(PEAK_END)}, riêng T7 từ {minutesToTime(SATURDAY_PEAK_START)}).
-          Các mốc dưới đây đã được đối chiếu với tổng giờ hợp đồng: Papenstieg chỉ có 439h/tháng nên T2–T5 chưa
-          đủ giờ cho hai người suốt cao điểm, vì vậy mốc 2 người chỉ đặt cho T6 và T7 — những ngày còn lại đường
-          nhu cầu (mục 4) vẫn kéo người về khung chiều.
+          Các mốc dưới đây là YÊU CẦU, không phải lúc nào cũng đủ giờ hợp đồng để trả: Papenstieg chỉ có
+          439h/tháng, thứ Ba ngân sách ~12,3h trong khi phủ kín 09:00–19:00 đã hết 10h và người thứ hai
+          15:00–19:00 thêm 4h. Những lúc không đủ, app để thiếu người ở cao điểm chứ <b>không bao giờ để tiệm
+          trống</b>, và báo cáo Độ phủ hiện đỏ chỗ đó.
         </p>
         <div className="space-y-4">
           {stores.map((store) => (
