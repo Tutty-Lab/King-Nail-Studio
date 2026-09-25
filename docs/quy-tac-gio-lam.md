@@ -51,15 +51,25 @@ số ngày, nhưng **giờ mở khác nhau**; dữ liệu tách riêng theo từ
   ngày mỗi người chỉ một ca**, không có ca gãy; ca không dưới 3h.
 - **Mọi giờ nằm trên mốc 30 phút**; phần lẻ của tuần đầu/cuối tháng dồn sang tuần
   kề thay vì tạo ca 1–2 giờ.
-- **Giới hạn đã biết:** mức 2 người không phải lúc nào cũng đủ giờ để trả.
-  Ngân sách giờ của một ngày do hợp đồng quyết định: ở Papenstieg thứ Ba chỉ có
-  ~12,3h, trong khi phủ 09:00–19:00 đã hết 10h, thêm người thứ hai 15:00–19:00
-  là 14h. Đo cả năm 2026: Arkaden thiếu 24 ô 30 phút (chỉ T7, người thứ ba),
-  Papenstieg 108 ô (chủ yếu T2 và T3). Tuần bị cắt ở đầu/cuối tháng cũng vậy.
-  Báo cáo **Độ phủ** hiện đỏ chỗ đó; việc **phủ kín (≥ 1 người) thì luôn đúng** —
+- **Cách chia giờ mỗi ngày (2 bước):** trước hết mỗi ngày mở được cấp đủ
+  **sàn** = số giờ để thoả mức người tối thiểu của ngày đó (Papenstieg ngày
+  thường: phủ 09:00–19:00 10h + người thứ hai 15:00–19:00 4h = 14h; T7 16h).
+  Phần **còn lại** mới chia theo hệ số ngày. Nhờ vậy ngày vắng không bị thiếu
+  giờ để phủ, ngày đông không nhận dư.
+- **Tráo giờ giữa hai người:** khi một ngày đủ tổng giờ nhưng vẫn hụt người cao
+  điểm (giờ nằm nhầm người), app chuyển 30 phút tới nguyên một ca từ A sang B ở
+  ngày đó và **trả lại ở một ngày khác cùng tuần** — tổng giờ tuần/tháng của cả
+  hai không đổi.
+- **Giới hạn đã biết:** mức 2 người không phải lúc nào cũng đủ giờ để trả. Ở
+  Papenstieg riêng mức tối thiểu đã ngốn ~86h trong 101h mỗi tuần. Đo cả năm
+  2026 (sau tối ưu): Arkaden thiếu **23 ô 30 phút** (chỉ T7, người thứ ba),
+  Papenstieg **57 ô** (chủ yếu T2 và T4) — trước tối ưu là 108 ô. Báo cáo
+  **Độ phủ** hiện đỏ chỗ đó; việc **phủ kín (≥ 1 người) thì luôn đúng** —
   trong thuật toán, để tiệm trống bị phạt gấp 10 lần thiếu người cao điểm.
-  Muốn hết đỏ: tăng giờ hợp đồng ở Papenstieg, hoặc rút mức 2 người của thứ Ba
-  còn 17:00–19:00, hoặc bỏ hẳn mức 2 người của thứ Ba (còn 74 ô).
+- **Đánh đổi ở Papenstieg:** vì sát mức tối thiểu, mọi ngày đều ~2 người lúc 17h
+  và T6/T7 chỉ nhiều hơn T3 khoảng **1,16 lần** về giờ (Arkaden 1,55 lần, T7 gần
+  5 người lúc 17h). Muốn T6/T7 ở Papenstieg đông hơn thấy rõ thì phải tăng giờ
+  hợp đồng (~2h/tuần là hết cả phần đỏ).
 
 > Các quy tắc này là vận hành của tiệm, không phải luật — có thể chỉnh theo từng
 > cơ sở (số người tối thiểu, khung giờ cao điểm, số ngày mở…). Khi đổi, nhớ

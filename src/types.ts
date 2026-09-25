@@ -31,7 +31,7 @@ export type Employee = {
   /**
    * Vertragliche WOCHENstunden. Gesetzt => targetMinutes wird je Monat daraus
    * abgeleitet: Wochenstunden × (offene Tage des Monats ÷ 6 offene Tage/Woche).
-   * Sechs offene Tage, weil der Laden montags zu ist (Di–So).
+   * Sechs offene Tage, weil das Studio sonntags zu ist (Mo–Sa).
    */
   weeklyHours?: number;
   /**
@@ -63,7 +63,8 @@ export type Employee = {
   /**
    * Muss diese Person an FEIERTAGEN im Dienst sein?
    *
-   * Vorgabe des Betriebs: „Những ngày lễ phải có bạn Bá Việt Nguyen trong ca".
+   * Aus der Vorlage: einzelne Person, die an geöffneten Feiertagen im Dienst
+   * sein muss. King Nail hat an Feiertagen zu, deshalb derzeit ungenutzt.
    * Gesetzt => der Scheduler plant sie an jedem geöffneten Feiertag ein, und
    * die Prüfung meldet es, wenn sie doch fehlt.
    */

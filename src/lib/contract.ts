@@ -29,7 +29,7 @@ function addDaysIso(isoDate: string, days: number): string {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
-/** Offene Tage je Woche: Di–So, der Montag ist zu. */
+/** Offene Tage je Woche: Mo–Sa, der Sonntag ist zu. */
 export const OPEN_DAYS_PER_WEEK = 6;
 export const SCHEDULE_SLOT_MINUTES = 30;
 /** Höchste bezahlte Zeit je Tag (§ 3 ArbZG, siehe validation.ts). */

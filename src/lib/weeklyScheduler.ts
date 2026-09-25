@@ -11,6 +11,7 @@ import {
   PEAK_END,
   PEAK_START,
   STAFFING_RULES,
+  minimumStaffHours,
   slotTargets,
   staffingWindows,
   weightedDailyTargets,
@@ -153,9 +154,24 @@ function optionsFor(
   }
   const options: Option[] = [];
   const add = (shifts: Shift[]) => options.push({ shifts, styleCost: (shifts.length - 1) * SPLIT_SHIFT_COST });
-  const placements = (block: DayWindow, duration: number, early: boolean): Shift[] =>
-    startsInBlock(block, duration + calculatePause(duration))
-      .map((start) => makeShift(employee.id, date, start, duration, early ? "EARLY" : "LATE", effectiveWeekday, ctx));
+  const placements = (block: DayWindow, duration: number, early: boolean): Shift[] => {
+    const presence = duration + calculatePause(duration);
+    const mitte = (block.startMinutes + block.endMinutes) / 2;
+    return startsInBlock(block, presence).map((start) =>
+      makeShift(
+        employee.id,
+        date,
+        start,
+        duration,
+        // Durchgehend offener Tag (ein Block): „früh" oder „spät" entscheidet
+        // die LAGE der Schicht im Tag – sonst hiesse jede Schicht „Ca sáng".
+        // Bei mehreren Blöcken zählt weiter der Block.
+        blocks.length === 1 ? (start + presence / 2 <= mitte ? "EARLY" : "LATE") : early ? "EARLY" : "LATE",
+        effectiveWeekday,
+        ctx,
+      ),
+    );
+  };
 
   blocks.forEach((block, index) => {
     for (const shift of placements(block, paid, index === 0 && block.startMinutes < 16 * 60)) add([shift]);
@@ -449,6 +465,161 @@ function topUpShortfalls(
   return shifts;
 }
 /**
+ * Stundentausch ZWISCHEN zwei Personen – der Schritt, den improveCoverage nicht
+ * kann, weil es die bezahlte Zeit jeder Person je Tag festhält.
+ *
+ * Typischer Fall im Studio: am Tag sind 16,5 h verplant, gebraucht werden 14 h,
+ * und trotzdem fehlt von 18:30 bis 19:00 die zweite Person – weil die halbe
+ * Stunde bei jemandem liegt, der schon um 12 Uhr anfängt. Ein Tausch von 30
+ * Minuten zwischen A und B an einem knappen Tag, zurückgetauscht an einem
+ * anderen Tag DERSELBEN Woche, lässt beide Wochen- und Monatssummen unberührt
+ * und schließt die Lücke.
+ *
+ * Gesucht wird nur dort, wo wirklich jemand fehlt (unterbesetzte Tage), sonst
+ * wäre die Paarsuche zu teuer.
+ */
+/** Mögliche Tauschmengen: 30' bis zur ganzen Schicht des Gebers. */
+function tradeAmounts(giverPaid: number, takerBackPaid: number): number[] {
+  const out: number[] = [];
+  for (let menge = SLOT; menge <= Math.min(giverPaid, takerBackPaid); menge += SLOT) {
+    const giverRest = giverPaid - menge;
+    const takerRest = takerBackPaid - menge;
+    if ((giverRest === 0 || giverRest >= MIN_SHIFT) && (takerRest === 0 || takerRest >= MIN_SHIFT)) out.push(menge);
+  }
+  return out;
+}
+
+function tradeMinutes(
+  result: Shift[],
+  employees: Employee[],
+  days: Map<string, Day>,
+  holidays: Set<string>,
+  dailyTargets: Map<string, number>,
+  ctx: Ctx,
+): Shift[] {
+  const open = [...days].filter(([, day]) => !day.closed);
+  const byWeek = new Map<string, string[]>();
+  for (const [date] of open) byWeek.set(weekStartOf(date), [...(byWeek.get(weekStartOf(date)) ?? []), date]);
+  const movable = employees.filter((employee) => !employee.fixedShift);
+  if (movable.length < 2) return result;
+  let current = result;
+
+  const costOf = (shifts: Shift[], date: string): number =>
+    dayCost(shifts.filter((s) => s.date === date), days.get(date)!.blocks,
+      effectiveWeekdayKey(date, holidays), dailyTargets.get(date), ctx);
+
+  /** Fehlt an diesem Tag irgendwo jemand gegenüber der Untergrenze? */
+  const understaffed = (shifts: Shift[], date: string): boolean => {
+    const onDay = shifts.filter((s) => s.date === date);
+    for (const window of staffingWindows(days.get(date)!.blocks, effectiveWeekdayKey(date, holidays), ctx.rules)) {
+      for (let minute = window.startMinutes; minute < window.endMinutes; minute += SLOT) {
+        let staff = 0;
+        for (const shift of onDay) if (workingAt(shift, minute)) staff++;
+        if (staff < window.minStaff) return true;
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Beste Lage für BEIDE Personen an einem Tag, gemeinsam gesucht. Nacheinander
+   * zu legen reicht nicht: wer zuerst dran ist, sieht den anderen noch nicht und
+   * stopft das Loch, das der andere ohnehin füllt.
+   */
+  const placePair = (
+    date: string,
+    first: Employee, firstPaid: number,
+    second: Employee, secondPaid: number,
+    others: Shift[],
+  ): Shift[] | undefined => {
+    const day = days.get(date)!;
+    const weekday = effectiveWeekdayKey(date, holidays);
+    const partialWeek = (byWeek.get(weekStartOf(date))?.length ?? 0) < 6;
+    // Bezahlte Zeit 0 = der Dienst entfällt an diesem Tag (eine leere Wahl).
+    const leer: Option[] = [{ shifts: [], styleCost: 0 }];
+    const optionsA = firstPaid === 0 ? leer : optionsFor(first, date, firstPaid, day.blocks, partialWeek, weekday, ctx);
+    const optionsB = secondPaid === 0 ? leer : optionsFor(second, date, secondPaid, day.blocks, partialWeek, weekday, ctx);
+    if (optionsA.length === 0 || optionsB.length === 0) return undefined;
+    let best: Shift[] | undefined;
+    let bestCost = Infinity;
+    for (const a of optionsA) {
+      for (const b of optionsB) {
+        const shifts = [...a.shifts, ...b.shifts];
+        const cost = dayCost([...others, ...shifts], day.blocks, weekday, dailyTargets.get(date), ctx)
+          + a.styleCost + b.styleCost;
+        if (cost < bestCost) { bestCost = cost; best = shifts; }
+      }
+    }
+    return best;
+  };
+
+  const paidOf = (shifts: Shift[], id: string, date: string): number =>
+    shifts.filter((s) => s.employeeId === id && s.date === date).reduce((sum, s) => sum + s.paidMinutes, 0);
+
+  for (let pass = 0; pass < 2; pass++) {
+    let changed = false;
+    for (const [weekStart, weekDates] of byWeek) {
+      void weekStart;
+      for (const needy of weekDates) {
+        if (!understaffed(current, needy)) continue;
+        for (const giver of movable) {
+          for (const taker of movable) {
+            if (giver === taker) continue;
+            if (!paidOf(current, giver.id, needy) || !paidOf(current, taker.id, needy)) continue;
+            for (const back of weekDates) {
+              if (back === needy) continue;
+              // Beide müssen an beiden Tagen schon arbeiten – hier entstehen
+              // keine neuen Arbeitstage (sonst kippen Ruhetage und Wochenrhythmus).
+              if (!paidOf(current, giver.id, back) || !paidOf(current, taker.id, back)) continue;
+              // Getauscht werden 30 Minuten bis zur ganzen Schicht: manchmal muss
+              // ein 3-Stunden-Dienst ganz weichen, damit ein anderer lang genug
+              // wird, um die Hauptzeit von Anfang bis Ende zu tragen.
+              for (const menge of tradeAmounts(paidOf(current, giver.id, needy), paidOf(current, taker.id, back))) {
+              const amounts = [
+                paidOf(current, giver.id, needy) - menge,
+                paidOf(current, taker.id, needy) + menge,
+                paidOf(current, giver.id, back) + menge,
+                paidOf(current, taker.id, back) - menge,
+              ];
+              if (amounts.some((paid) => paid > MAX_PAID)) continue;
+              // 0 heisst: der Dienst entfällt an diesem Tag; sonst gilt die
+              // Mindestlänge.
+              if (amounts.some((paid) => paid !== 0 && paid < MIN_SHIFT)) continue;
+              const rest = current.filter(
+                (s) => !((s.employeeId === giver.id || s.employeeId === taker.id) && (s.date === needy || s.date === back)),
+              );
+              const vorher = costOf(current, needy) + costOf(current, back);
+              const neu: Shift[] = [];
+              let moeglich = true;
+              for (const [date, firstPaid, secondPaid] of [
+                [needy, amounts[1], amounts[0]],
+                [back, amounts[2], amounts[3]],
+              ] as const) {
+                const paare = date === needy
+                  ? placePair(date, taker, firstPaid, giver, secondPaid, rest.filter((s) => s.date === date))
+                  : placePair(date, giver, firstPaid, taker, secondPaid, rest.filter((s) => s.date === date));
+                if (!paare) { moeglich = false; break; }
+                neu.push(...paare);
+              }
+              if (!moeglich) continue;
+              const nachher = [...rest, ...neu];
+              if (costOf(nachher, needy) + costOf(nachher, back) < vorher - 0.01) {
+                current = nachher;
+                changed = true;
+                break;
+              }
+              }
+            }
+          }
+        }
+      }
+    }
+    if (!changed) break;
+  }
+  return current;
+}
+
+/**
  * Final per-day polish, keeping every person's paid minutes for the day:
  *  1. move a person's shift(s) to a better start (all 30-minute options),
  *  2. move each pause to the valid pause start that fits the REAL headcount –
@@ -598,6 +769,8 @@ export function generateWeeklySchedule(input: WeeklyInput, existing: Shift[] = [
       (date) => effectiveWeekdayKey(date, holidays),
       (date) => openMinutesOfBlocks(days.get(date)!.blocks),
       ctx.weights,
+      // Sàn: giờ công tối thiểu để phủ cửa VÀ đủ người các khung cao điểm.
+      (date) => minimumStaffHours(days.get(date)!.blocks, effectiveWeekdayKey(date, holidays), ctx.rules),
     );
     for (const [date, hours] of targets) dailyTargets.set(date, hours);
   };
@@ -654,6 +827,15 @@ export function generateWeeklySchedule(input: WeeklyInput, existing: Shift[] = [
   );
   result = topUpShortfalls(result, employees, days, holidays, dailyTargets, monthlyTargets, weeklyCaps, ctx);
 
+  // Feinschliff und Tausch wechseln sich ab: der Tausch verschiebt Stunden
+  // zwischen zwei Personen, der Feinschliff legt danach alles neu zurecht – und
+  // öffnet damit oft den nächsten sinnvollen Tausch.
+  for (let runde = 0; runde < 3; runde++) {
+    result = improveCoverage(result, employees, days, holidays, dailyTargets, ctx);
+    const getauscht = tradeMinutes(result, employees, days, holidays, dailyTargets, ctx);
+    if (getauscht === result) break;
+    result = getauscht;
+  }
   return improveCoverage(result, employees, days, holidays, dailyTargets, ctx)
     .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes || a.employeeId.localeCompare(b.employeeId));
 }

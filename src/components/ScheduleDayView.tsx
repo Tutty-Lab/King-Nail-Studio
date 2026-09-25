@@ -146,7 +146,7 @@ export function ScheduleDayView({
       <div className="mt-2 grid grid-cols-3 gap-2 text-center">
         <Summary label="Số NV" value={`${working.length}${shiftsOfDay.length > working.length ? ` (${shiftsOfDay.length} ca)` : ""}`} />
         <Summary label="Tổng giờ" value={minutesToShortHours(totalMin)} />
-        <Summary label="Sáng / Tối" value={`${earlyCount} / ${lateCount}`} />
+        <Summary label="Sáng / Chiều" value={`${earlyCount} / ${lateCount}`} />
       </div>
 
       {/* Danh sách người làm */}
@@ -176,7 +176,7 @@ export function ScheduleDayView({
                       ? `Ca gãy · ${minutesToShortHours(paid)}`
                       : first.shiftType === "EARLY"
                         ? "Ca sáng"
-                        : "Ca tối"}
+                        : "Ca chiều"}
                   </div>
                 </div>
                 <div className="text-right shrink-0 space-y-0.5">

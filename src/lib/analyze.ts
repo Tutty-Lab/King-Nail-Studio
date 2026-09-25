@@ -22,7 +22,7 @@ import {
   type OverrideMap,
   type WorkHoursConfig,
 } from "./workHours";
-import { coveragePoints, staffingWindows, weightedDailyTargets, workingAt, type StaffingRule } from "./staffing";
+import { coveragePoints, minimumStaffHours, staffingWindows, weightedDailyTargets, workingAt, type StaffingRule } from "./staffing";
 import { weekStartOf } from "./weeks";
 import { mayWorkOn } from "./availability";
 
@@ -118,7 +118,7 @@ export function analyzeSchedule(input: AnalyzeInput): ScheduleAnalysis {
     const hours = weekDates.reduce((sum, date) => sum + (byDate.get(date) ?? []).reduce((acc, shift) => acc + shift.paidMinutes, 0), 0) / 60;
     const openMinutesOf = (value: string) => resolveDay(input.workHours, value, holidays, overrides).blocks
       .reduce((sum, block) => sum + (block.endMinutes - block.startMinutes), 0);
-    for (const [date, target] of weightedDailyTargets(weekDates, hours, (value) => effectiveWeekdayKey(value, holidays), openMinutesOf, input.weights)) {
+    for (const [date, target] of weightedDailyTargets(weekDates, hours, (value) => effectiveWeekdayKey(value, holidays), openMinutesOf, input.weights, (value) => minimumStaffHours(resolveDay(input.workHours, value, holidays, overrides).blocks, effectiveWeekdayKey(value, holidays), input.rules))) {
       dailyTargets.set(date, target);
     }
   }

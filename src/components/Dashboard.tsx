@@ -193,8 +193,9 @@ export function Dashboard({ store }: { store: UseScheduleReturn }) {
           </div>
           <div className="mt-2 opacity-80">
             → Vì sao: tổng giờ trong ngày đủ định mức, nhưng phân bố theo giờ chưa khớp khung yêu cầu
-            (trưa 12–14h 3–7 người, tối 18–21h 4–7 người, luôn có người tới 15:00 và 22:00). Cách xử lý:
-            tăng định mức/thêm người cho ngày đó, sửa tay ca, hoặc chấp nhận vì lịch vẫn hợp lệ.
+            (phủ kín giờ mở cửa, và cao điểm 15:00–19:00 — T7 từ 11:00 — phải đủ người). Ngày vắng như
+            thứ Ba có khi không đủ giờ hợp đồng để xếp người thứ hai suốt cao điểm. Cách xử lý: tăng định
+            mức/thêm người cho ngày đó, sửa tay ca, hoặc chấp nhận vì lịch vẫn hợp lệ.
           </div>
         </InfoNote>
       )}

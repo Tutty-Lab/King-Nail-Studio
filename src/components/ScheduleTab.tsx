@@ -230,7 +230,7 @@ export function ScheduleTab({ store }: { store: UseScheduleReturn }) {
             <span className="inline-block h-3 w-3 rounded border shift-early" /> Ca sáng
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-3 w-3 rounded border shift-late" /> Ca tối
+            <span className="inline-block h-3 w-3 rounded border shift-late" /> Ca chiều
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-3 w-3 rounded border shift-free" /> Nghỉ
@@ -392,7 +392,7 @@ export function ScheduleTab({ store }: { store: UseScheduleReturn }) {
                 value={(d) => minutesToShortHours(dayStats.get(d)!.total)}
               />
               <SummaryRow label="Ca sáng" dates={gridDates} value={(d) => String(dayStats.get(d)!.early)} />
-              <SummaryRow label="Ca tối" dates={gridDates} value={(d) => String(dayStats.get(d)!.late)} />
+              <SummaryRow label="Ca chiều" dates={gridDates} value={(d) => String(dayStats.get(d)!.late)} />
             </tfoot>
           </table>
         </div>

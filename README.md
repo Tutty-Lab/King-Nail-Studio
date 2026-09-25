@@ -74,19 +74,40 @@ eines Tages folgt aus den Verträgen. Gemessen über alle zwölf Monate 2026:
 
 | Filiale | fehlende halbe Stunden in der Hauptzeit | wo |
 |---|---|---|
-| Schloss Arkaden | 24 im Jahr (höchstens 13 im Monat) | nur samstags, dritte Person |
-| Papenstieg | 108 im Jahr (höchstens 21 im Monat) | vor allem Mo und Di |
+| Schloss Arkaden | 23 im Jahr (höchstens 13 im Monat) | nur samstags, dritte Person |
+| Papenstieg | 57 im Jahr (höchstens 12 im Monat) | vor allem Mo und Mi |
 
-Grund: in Papenstieg hat ein Dienstag rund 12,3 h Budget, gebraucht werden
-10 h Abdeckung + 4 h zweite Person = 14 h. Dasselbe passiert in einer
-**angebrochenen Woche am Monatsrand**, weil dort nur ein Teil der Woche zum
-Monat gehört. Der Bericht „Độ phủ" zeigt diese halben Stunden rot an. Die
-Abdeckung (mindestens eine Person, kein leeres Studio) gilt **immer** – sie ist
-im Planer zehnmal so teuer bewertet wie eine Lücke in der Hauptzeit.
+Grund: der Monat hat in Papenstieg 439 Vertragsstunden, und die reine
+Mindestbesetzung (Abdeckung + zweite Person in der Hauptzeit) kostet schon rund
+86 h je Woche von 101 h. Es bleibt also kaum Luft, und jede Rundung auf die
+halbe Stunde schlägt durch. Dasselbe passiert in einer **angebrochenen Woche am
+Monatsrand**. Der Bericht „Độ phủ" zeigt diese halben Stunden rot an.
 
-Wer die roten Stellen schließen will, hat drei Wege: mehr Vertragsstunden in
-Papenstieg, die Zwei-Personen-Pflicht am Dienstag auf 17:00–19:00 kürzen, oder
-sie dienstags ganz weglassen (dann bleiben 74 statt 108 halbe Stunden).
+Die Abdeckung (mindestens eine Person, kein leeres Studio) gilt **immer** – sie
+ist im Planer zehnmal so teuer bewertet wie eine Lücke in der Hauptzeit.
+
+Zwei Schritte im Planer holen hier das Meiste heraus (siehe
+`src/lib/weeklyScheduler.ts`):
+
+1. **Sockel vor Gewicht** (`minimumStaffHours`): jeder offene Tag bekommt zuerst
+   die Stunden, die seine Mindestbesetzung kostet – unabhängig vom Tagesgewicht.
+   Erst der Rest wird nach Mo 1,2 … Sa 2,0 verteilt. Ohne das bekam der Dienstag
+   zu wenig und der Freitag mehr, als er brauchte.
+2. **Stundentausch zwischen zwei Personen** (`tradeMinutes`): 30 Minuten bis zu
+   einer ganzen Schicht wandern an einem knappen Tag von A zu B und am selben
+   Tag einer anderen Woche zurück – Wochen- und Monatssumme bleiben exakt. Das
+   löst den häufigsten Fall: der Tag hat genug Stunden, sie liegen nur bei der
+   falschen Person (ein 3-Stunden-Dienst, der um 18:30 endet, statt einer
+   längeren Schicht bis 19:00).
+
+Zusammen sank die Zahl der roten halben Stunden in Papenstieg von 108 auf 57.
+
+**Was das Budget NICHT hergibt:** in Papenstieg liegen alle Tage nahe an der
+Mindestbesetzung, um 17 Uhr stehen an jedem Wochentag genau 2 Personen. Die
+starken Tage bekommen dort nur 1,16-mal so viele Stunden wie ein Dienstag
+(Arkaden: 1,55-mal, samstags knapp 5 Personen um 17 Uhr). Wer freitags und
+samstags in Papenstieg sichtbar mehr Personal will, braucht mehr
+Vertragsstunden – rund 2 h je Woche schließen auch die letzten roten Stellen.
 
 ## PDF
 

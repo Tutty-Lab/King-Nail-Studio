@@ -280,11 +280,12 @@ Giờ công của ngày được chia theo đường dưới đây thành <b>s�
       <Section title="5. Thuật toán xếp lịch – các bước">
         <ol className="list-decimal space-y-1 pl-5">
           <li><b>Giờ tuần của từng người:</b> hợp đồng tháng chia cho các tuần theo số ngày mở (tính từ ngày vào làm).</li>
-          <li><b>Giờ công mỗi ngày</b> theo công thức mục 2, rồi <b>số người mục tiêu mỗi 30′</b> theo đường nhu cầu mục 4.</li>
+          <li><b>Giờ công mỗi ngày</b>: cấp trước <b>sàn</b> (đủ mức người tối thiểu của ngày đó), phần còn lại chia theo hệ số ngày (mục 2); rồi <b>số người mục tiêu mỗi 30′</b> theo đường nhu cầu mục 4.</li>
           <li><b>Chọn ngày và độ dài ca cho từng người trong tuần</b> sao cho đúng giờ tuần; ai phải trực ngày lễ thì ngày đó được giữ trước.</li>
-          <li><b>Đặt ca</b> ở mọi mốc 30′ trong khung. Chấm điểm theo thứ tự nặng → nhẹ: thiếu/thừa người so với khung mục 3 → lệch số người mục tiêu (bình phương) → lệch giờ công ngày → ca gãy (phạt nhẹ).</li>
+          <li><b>Đặt ca</b> ở mọi mốc 30′ trong khung. Chấm điểm theo thứ tự nặng → nhẹ: <b>để tiệm trống</b> (phạt gấp 10) → thiếu/thừa người so với khung mục 3 → lệch số người mục tiêu (bình phương) → lệch giờ công ngày.</li>
           <li><b>Bù giờ lẻ:</b> phần còn thiếu do làm tròn được thêm 30′ vào ca ít ảnh hưởng nhất, không vượt 8h/ngày và không vượt hợp đồng.</li>
           <li><b>Tinh chỉnh từng ngày:</b> dời giờ vào/ra và dời <b>giờ nghỉ</b> theo số người thực tế.</li>
+          <li><b>Tráo giờ giữa hai người:</b> ngày nào đủ tổng giờ mà vẫn hụt người cao điểm thì chuyển 30′ (tới cả ca) từ người này sang người kia, và trả lại ở ngày khác cùng tuần — tổng giờ tuần/tháng không đổi.</li>
           <li><b>Kiểm tra</b>: luật, hợp đồng, ca, nghỉ, trực ngày lễ và độ phủ; lỗi đỏ chặn, cảnh báo vàng không chặn xuất PDF.</li>
         </ol>
       </Section>
