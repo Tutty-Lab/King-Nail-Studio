@@ -153,9 +153,8 @@ export function staffingWindows(
  * nó, rồi cộng lại.
  *
  * Ví dụ Papenstieg ngày thường: phủ 09:00–19:00 với 1 người = 10h, cộng người
- * thứ hai 15:00–19:00 = 4h → 14h. Đây là phần giờ KHÔNG phụ thuộc hệ số ngày:
- * ngày vắng cũng phải phủ như ngày đông. Vì vậy nó được cấp trước, phần dư mới
- * chia theo hệ số (xem weightedDailyTargets).
+ * thứ hai 15:00–19:00 = 4h → 14h. Đây là MỨC SÀN của ngày: chia theo hệ số mà
+ * ngày nào rơi xuống dưới sàn thì được nâng lên sàn (xem weightedDailyTargets).
  */
 export function minimumStaffHours(
   blocks: DayBlocks,
@@ -277,14 +276,16 @@ export function coveragePoints(shifts: Shift[], from: number, to: number): numbe
 /**
  * Giờ công mục tiêu mỗi ngày, chuẩn hoá trong từng ISO-week (không mượn giữa các tuần).
  *
- * Hai bước:
- *  1. **Sàn phủ cửa** (floorOf): mỗi ngày mở phải có ít nhất 1 người suốt giờ
- *     mở, nên ngày nào cũng cần trước một số giờ CỐ ĐỊNH bằng số giờ mở cửa —
- *     không liên quan tới hệ số ngày. Bỏ qua bước này thì ngày vắng (T3) nhận
- *     quá ít giờ để phủ nổi, còn ngày đông nhận dư.
- *  2. Phần CÒN LẠI chia theo hệ số: giờ ngày = phần dư × (hệ số × phút mở) ÷ Σ(…).
+ * Hệ số áp cho CẢ ngày: giờ ngày = giờ tuần × (hệ số × phút mở) ÷ Σ(…). Sàn
+ * (floorOf = giờ để đủ số người tối thiểu) chỉ là mức dưới: ngày nào chia ra
+ * thấp hơn sàn thì ghim ở sàn, phần còn lại chia lại theo hệ số cho các ngày
+ * khác. Chủ tiệm: T6/T7 đông nên phải nhiều giờ hẳn; đủ 2 người cao điểm là
+ * ưu tiên, không phải luật cứng — chỉ phủ kín giờ mở mới là bắt buộc.
  *
- * Nếu tổng giờ còn không đủ cho sàn (hợp đồng quá ít so với giờ mở), quay về
+ * (Trước đây cấp sàn trước rồi mới chia PHẦN DƯ theo hệ số. Vì sàn T2–T6 như
+ * nhau nên T6 gần ngang T2 — Arkaden T6 chỉ 1,16 lần T2.)
+ *
+ * Nếu tổng giờ không đủ cho sàn (hợp đồng quá ít so với giờ mở), quay về
  * cách chia thuần theo hệ số. Không truyền openMinutesOf => chỉ theo hệ số.
  */
 export function weightedDailyTargets(
@@ -302,8 +303,20 @@ export function weightedDailyTargets(
     const floors = new Map(dates.map((date) => [date, floorOf(date)]));
     const floorSum = [...floors.values()].reduce((a, b) => a + b, 0);
     if (floorSum > 0 && floorSum < total) {
-      const rest = total - floorSum;
-      return new Map(dates.map((date) => [date, floors.get(date)! + share(date, rest)]));
+      // Mực nước: chia TẤT CẢ theo hệ số; ngày nào hụt sàn thì ghim ở sàn và
+      // chia lại phần còn lại cho các ngày chưa ghim, tới khi không ai hụt.
+      const pinned = new Set<string>();
+      for (;;) {
+        const free = dates.filter((date) => !pinned.has(date));
+        const rest = total - [...pinned].reduce((acc, date) => acc + floors.get(date)!, 0);
+        const freeSum = free.reduce((acc, date) => acc + factor(date), 0);
+        const part = (date: string) => (freeSum > 0 ? rest * factor(date) / freeSum : 0);
+        const short = free.filter((date) => part(date) < floors.get(date)!);
+        if (short.length === 0) {
+          return new Map(dates.map((date) => [date, pinned.has(date) ? floors.get(date)! : part(date)]));
+        }
+        for (const date of short) pinned.add(date);
+      }
     }
   }
   return new Map(dates.map((date) => [date, share(date, total)]));

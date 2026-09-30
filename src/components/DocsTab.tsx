@@ -240,6 +240,9 @@ Chủ tiệm cho: <b>T2 1,2 · T3 1,0 · T4 1,2 · T5 1,2 · T6 2,0 · T7 2,0</b
           <li>Hệ số là <b>mục tiêu</b>, không phải tỷ lệ bảo đảm: tổng giờ hợp đồng cố định, mỗi ngày phải phủ
           kín giờ mở và số người mỗi khung có trần — nên tỷ lệ thực tế giữa ngày đông và ngày vắng thấp hơn
           2,0 một chút.</li>
+          <li>Ngày nào chia ra thấp hơn <b>sàn</b> (số giờ để đủ người tối thiểu, mục 3) thì được nâng lên sàn,
+          bớt của các ngày khác. Đủ 2 người cao điểm là <b>ưu tiên</b>, không phải luật cứng — chỉ phủ kín giờ
+          mở cửa là bắt buộc.</li>
           <li>Mọi giờ đều nằm trên <b>mốc 30 phút</b>. Phần lẻ sau khi làm tròn được <b>bù vào cuối</b>: một ca dài thêm 30′ ở chỗ ít ảnh hưởng nhất. Tuần lẻ ở đầu/cuối tháng nếu chỉ còn dưới 3 giờ thì phần đó <b>dồn sang tuần kề</b>, không tạo ca lẻ 1–2 giờ.</li>
         </ul>
       </Section>
@@ -281,7 +284,7 @@ Giờ công của ngày được chia theo đường dưới đây thành <b>s�
       <Section title="5. Thuật toán xếp lịch – các bước">
         <ol className="list-decimal space-y-1 pl-5">
           <li><b>Giờ tuần của từng người:</b> hợp đồng tháng chia cho các tuần theo số ngày mở (tính từ ngày vào làm).</li>
-          <li><b>Giờ công mỗi ngày</b>: cấp trước <b>sàn</b> (đủ mức người tối thiểu của ngày đó), phần còn lại chia theo hệ số ngày (mục 2); rồi <b>số người mục tiêu mỗi 30′</b> theo đường nhu cầu mục 4.</li>
+          <li><b>Giờ công mỗi ngày</b>: chia theo hệ số ngày (mục 2), ngày nào thấp hơn <b>sàn</b> (đủ mức người tối thiểu) thì nâng lên sàn; rồi <b>số người mục tiêu mỗi 30′</b> theo đường nhu cầu mục 4.</li>
           <li><b>Chọn ngày và độ dài ca cho từng người trong tuần</b> sao cho đúng giờ tuần; ai phải trực ngày lễ thì ngày đó được giữ trước.</li>
           <li><b>Đặt ca</b> ở mọi mốc 30′ trong khung. Chấm điểm theo thứ tự nặng → nhẹ: <b>để tiệm trống</b> (phạt gấp 10) → thiếu/thừa người so với khung mục 3 → lệch số người mục tiêu (bình phương) → lệch giờ công ngày.</li>
           <li><b>Bù giờ lẻ:</b> phần còn thiếu do làm tròn được thêm 30′ vào ca ít ảnh hưởng nhất, không vượt 8h/ngày và không vượt hợp đồng.</li>

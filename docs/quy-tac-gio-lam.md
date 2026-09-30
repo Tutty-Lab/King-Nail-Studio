@@ -57,26 +57,31 @@ số ngày, nhưng **giờ mở khác nhau**; dữ liệu tách riêng theo từ
   ngày mỗi người chỉ một ca**, không có ca gãy; ca không dưới 3h.
 - **Mọi giờ nằm trên mốc 30 phút**; phần lẻ của tuần đầu/cuối tháng dồn sang tuần
   kề thay vì tạo ca 1–2 giờ.
-- **Cách chia giờ mỗi ngày (2 bước):** trước hết mỗi ngày mở được cấp đủ
-  **sàn** = số giờ để thoả mức người tối thiểu của ngày đó (Papenstieg ngày
-  thường: phủ 09:00–19:00 10h + người thứ hai 15:00–19:00 4h = 14h; T7 16h;
-  **T3 chỉ 10h** vì cao điểm T3 cần 1 người).
-  Phần **còn lại** mới chia theo hệ số ngày. Nhờ vậy ngày vắng không bị thiếu
-  giờ để phủ, ngày đông không nhận dư.
+- **Cách chia giờ mỗi ngày:** giờ cả tuần chia **thẳng theo hệ số ngày** — T6/T7
+  (2,0) nhận nhiều giờ hơn hẳn T2 (1,2). **Sàn** = số giờ để thoả mức người tối
+  thiểu của ngày đó (Papenstieg ngày thường: phủ 09:00–19:00 10h + người thứ
+  hai 15:00–19:00 4h = 14h; T7 16h; **T3 chỉ 10h**) chỉ là mức dưới: ngày nào
+  chia ra thấp hơn sàn thì được nâng lên sàn, bớt của các ngày khác.
+- **Ưu tiên, không cứng:** chủ tiệm chốt „đủ 2 người cao điểm thì tốt, không
+  phải hard rule". Bắt buộc duy nhất là **phủ kín giờ mở cửa (≥ 1 người)**;
+  số người cao điểm và tỷ lệ theo hệ số là mục tiêu, xếp được thì xếp.
 - **Tráo giờ giữa hai người:** khi một ngày đủ tổng giờ nhưng vẫn hụt người cao
   điểm (giờ nằm nhầm người), app chuyển 30 phút tới nguyên một ca từ A sang B ở
   ngày đó và **trả lại ở một ngày khác cùng tuần** — tổng giờ tuần/tháng của cả
   hai không đổi.
 - **Giới hạn đã biết:** mức 2 người không phải lúc nào cũng đủ giờ để trả. Ở
-  Papenstieg riêng mức tối thiểu đã ngốn ~82h trong 101h mỗi tuần. Đo cả năm
-  2026: Arkaden thiếu **23 ô 30 phút** (chỉ T7, người thứ ba), Papenstieg
-  **17 ô** (T2 và T7) — trước tối ưu là 108 ô, trước khi hạ T3 xuống 1 người
-  là 34 ô. Báo cáo **Độ phủ** hiện đỏ chỗ đó; việc **phủ kín (≥ 1 người) thì luôn đúng** —
+  Papenstieg riêng mức tối thiểu đã ngốn ~82h trong 101h mỗi tuần; dồn giờ cho
+  T6/T7 thì T2, T4, T5 sát sàn. Đo cả năm 2026: Arkaden thiếu **24 ô 30 phút**
+  (chỉ T7, người thứ ba), Papenstieg **70 ô** (T2 25, T5 21, T4 16, T7 8).
+  Chủ tiệm chấp nhận đổi lấy T6/T7 đông hơn (giữ cách chia cũ thì chỉ 17 ô
+  nhưng T6 gần ngang T2). Báo cáo **Độ phủ** hiện đỏ chỗ đó; việc **phủ kín (≥ 1 người) thì luôn đúng** —
   trong thuật toán, để tiệm trống bị phạt gấp 10 lần thiếu người cao điểm.
-- **Đánh đổi ở Papenstieg:** vì sát mức tối thiểu, các ngày trừ T3 đều ~2 người
-  lúc 17h (T3 thường 1 người). T6/T7 nhiều hơn T3 khoảng **1,5 lần** về giờ
-  (Arkaden 1,8 lần, T7 ~4,5 người lúc 17h). Muốn T6/T7 ở Papenstieg đông hơn
-  thấy rõ thì phải tăng giờ hợp đồng.
+- **Kết quả theo thứ (TB 2026, giờ công/ngày):**
+  Arkaden T2 22,8 · T3 18,9 · T4 22,4 · T5 22,1 · **T6 35,8 · T7 35,3**
+  (17h: T6 ~4,8 người, T7 ~4 người).
+  Papenstieg T2 16,5 · T3 11,4 · T4 16,5 · T5 16,5 · **T6 23,2 · T7 20,6**
+  (17h: T6 ~3 người, còn lại ~2, T3 ~1). Muốn hết đỏ ở Papenstieg mà vẫn giữ
+  T6/T7 đông thì phải tăng giờ hợp đồng.
 
 > Các quy tắc này là vận hành của tiệm, không phải luật — có thể chỉnh theo từng
 > cơ sở (số người tối thiểu, khung giờ cao điểm, số ngày mở…). Khi đổi, nhớ

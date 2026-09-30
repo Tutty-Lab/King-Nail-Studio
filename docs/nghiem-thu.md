@@ -112,7 +112,9 @@
 - [ ] **Check thuật toán** — xem [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md):
   - [ ] Không ai > **8h/ngày** (mức tiệm tự đặt, luật cho 10h); không ai > **6 ngày liên tiếp**.
   - [ ] Pause đúng ngưỡng; Gesamtstunden khớp định mức.
-  - [ ] Phủ **kín giờ mở cửa** (luôn ≥ 1 người) và đủ người trong **cao điểm** 15:00–19:00 (T7 từ 11:00) theo [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md); chỗ thiếu duy nhất được chấp nhận là tuần bị cắt ở đầu/cuối tháng.
+  - [ ] Phủ **kín giờ mở cửa** (luôn ≥ 1 người) — bắt buộc, không có ngoại lệ.
+  - [ ] Người trong **cao điểm** 15:00–19:00 (T7 từ 11:00) theo [`quy-tac-gio-lam.md`](quy-tac-gio-lam.md) là **ưu tiên, không cứng**: chỗ đỏ trong báo cáo Độ phủ được chấp nhận nếu nằm trong mức đã đo ở đó.
+  - [ ] **T6/T7 nhiều giờ hơn hẳn T2–T5** (theo hệ số ngày), T3 ít nhất.
 - [ ] **Check format** — đối chiếu mục **B** ở trên trên vài file vừa in.
 
 ---

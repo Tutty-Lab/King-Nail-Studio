@@ -76,8 +76,14 @@ eines Tages folgt aus den Verträgen. Gemessen über alle zwölf Monate 2026:
 
 | Filiale | fehlende halbe Stunden in der Hauptzeit | wo |
 |---|---|---|
-| Schloss Arkaden | 23 im Jahr (höchstens 13 im Monat) | nur samstags, dritte Person |
-| Papenstieg | 17 im Jahr (höchstens 12 im Monat) | Mo und Sa |
+| Schloss Arkaden | 24 im Jahr (höchstens 13 im Monat) | nur samstags, dritte Person |
+| Papenstieg | 70 im Jahr (höchstens 16 im Monat) | Mo, Do, Mi, etwas Sa |
+
+Die zweite Person in der Hauptzeit ist laut Betrieb ein **Ziel, keine harte
+Regel** („nếu xếp được thì ưu tiên"). Hart ist nur die Abdeckung. Deshalb hat
+das Tagesgewicht Vorrang: Freitag und Samstag bekommen sichtbar mehr Stunden,
+auch wenn Papenstieg dafür an Mo/Mi/Do öfter nur eine Person in der Hauptzeit
+hat.
 
 Grund: der Monat hat in Papenstieg 439 Vertragsstunden, und die reine
 Mindestbesetzung (Abdeckung + zweite Person in der Hauptzeit, dienstags nur
@@ -91,10 +97,12 @@ ist im Planer zehnmal so teuer bewertet wie eine Lücke in der Hauptzeit.
 Zwei Schritte im Planer holen hier das Meiste heraus (siehe
 `src/lib/weeklyScheduler.ts`):
 
-1. **Sockel vor Gewicht** (`minimumStaffHours`): jeder offene Tag bekommt zuerst
-   die Stunden, die seine Mindestbesetzung kostet – unabhängig vom Tagesgewicht.
-   Erst der Rest wird nach Mo 1,2 … Sa 2,0 verteilt. Ohne das bekam der Dienstag
-   zu wenig und der Freitag mehr, als er brauchte.
+1. **Gewicht mit Sockel als Untergrenze** (`weightedDailyTargets`,
+   `minimumStaffHours`): die Wochenstunden werden nach Mo 1,2 … Sa 2,0 auf die
+   Tage verteilt. Fällt ein Tag dabei unter die Stunden seiner
+   Mindestbesetzung, wird er auf diesen Sockel gehoben und der Rest neu nach
+   Gewicht verteilt. (Früher bekam jeder Tag erst den Sockel und nur der Rest
+   folgte dem Gewicht – dann lag der Freitag kaum über dem Montag.)
 2. **Stundentausch zwischen zwei Personen** (`tradeMinutes`): 30 Minuten bis zu
    einer ganzen Schicht wandern an einem knappen Tag von A zu B und an einem
    anderen Tag derselben Woche zurück – Wochen- und Monatssumme bleiben exakt.
@@ -106,17 +114,14 @@ Zwei Schritte im Planer holen hier das Meiste heraus (siehe
    sechs Öffnungstage. Mit ihr werden die Dienste länger, liegen besser in der
    Hauptzeit – und jede Person hat einen freien Tag zusätzlich zum Sonntag.
 
-Zusammen sank die Zahl der roten halben Stunden in Papenstieg von 108 auf 34.
-Seit dienstags eine Person in der Hauptzeit genügt, sind es noch 17: der
-Dienstag braucht rund 4 h weniger, die gehen an Mo und Mi–Sa.
+Mit „Sockel zuerst" sank die Zahl der roten halben Stunden in Papenstieg von
+108 auf 34, mit einer Person dienstags auf 17. Seit das Gewicht Vorrang hat,
+sind es wieder 70 – bewusst, im Tausch gegen volle Freitage und Samstage.
 
-**Was das Budget NICHT hergibt:** in Papenstieg liegen alle Tage außer dem
-Dienstag nahe an der Mindestbesetzung, um 17 Uhr stehen Mo–Sa meist 2 Personen
-(dienstags oft nur eine). Freitag und Samstag bekommen dort rund 1,5-mal so
-viele Stunden wie ein Dienstag (Arkaden: 1,8-mal, samstags rund 4,5 Personen
-um 17 Uhr). Wer freitags und
-samstags in Papenstieg sichtbar mehr Personal will, braucht mehr
-Vertragsstunden – rund 2 h je Woche schließen auch die letzten roten Stellen.
+**Stunden je Wochentag** (Durchschnitt 2026): Arkaden Mo 22,8 · Di 18,9 ·
+Mi 22,4 · Do 22,1 · **Fr 35,8 · Sa 35,3**; Papenstieg Mo 16,5 · Di 11,4 ·
+Mi 16,5 · Do 16,5 · **Fr 23,2 · Sa 20,6**. Wer in Papenstieg volle Freitage
+UND keine roten Stellen will, braucht mehr Vertragsstunden.
 
 ## PDF
 

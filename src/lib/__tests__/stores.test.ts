@@ -229,6 +229,21 @@ describe("Tagesgewichte", () => {
     const MINDESTENS: Record<string, number> = { arkaden: 1.4, papenstieg: 1.1 };
     expect(hoursOn(["friday", "saturday"]) / hoursOn(["tuesday"])).toBeGreaterThan(MINDESTENS[store.id]);
   });
+
+  it.each(TEAMS)("%s: der Freitag trägt deutlich mehr als der Montag (Gewicht 2,0 gegen 1,2)", (_name, store) => {
+    // Das Gewicht gilt für den GANZEN Tag, der Sockel ist nur Untergrenze –
+    // sonst bekämen Mo und Fr denselben Sockel und lägen fast gleichauf.
+    const shifts = planOf(2026, 9, store);
+    const avgOn = (weekday: string) => {
+      const days = new Map<string, number>();
+      for (const s of shifts) {
+        if (weekdayKeyOf(parseIsoDate(s.date)) !== weekday) continue;
+        days.set(s.date, (days.get(s.date) ?? 0) + s.paidMinutes);
+      }
+      return [...days.values()].reduce((sum, m) => sum + m, 0) / days.size;
+    };
+    expect(avgOn("friday") / avgOn("monday")).toBeGreaterThan(1.3);
+  });
 });
 
 describe("Feste Wochen und freie Tage", () => {
