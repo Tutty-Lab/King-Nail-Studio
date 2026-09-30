@@ -222,9 +222,10 @@ describe("Tagesgewichte", () => {
       return [...days.values()].reduce((sum, m) => sum + m, 0) / days.size;
     };
     // Wie stark der Unterschied ausfallen KANN, hängt am Budget: Arkaden hat
-    // über die Mindestbesetzung hinaus viel Luft (Samstag rund 39 h gegen 21 h
-    // am Dienstag), Papenstieg fast keine – dort sind 439 h im Monat beinahe
-    // genau die Mindestbesetzung, deshalb liegen alle Tage nah beieinander.
+    // über die Mindestbesetzung hinaus viel Luft (Samstag rund 39 h gegen 19 h
+    // am Dienstag), Papenstieg wenig – dort sind 439 h im Monat nah an der
+    // Mindestbesetzung. Dass dienstags eine Person in der Hauptzeit reicht,
+    // spreizt die Tage trotzdem sichtbar (2026 rund 1,8- bzw. 1,5-mal).
     const MINDESTENS: Record<string, number> = { arkaden: 1.4, papenstieg: 1.1 };
     expect(hoursOn(["friday", "saturday"]) / hoursOn(["tuesday"])).toBeGreaterThan(MINDESTENS[store.id]);
   });

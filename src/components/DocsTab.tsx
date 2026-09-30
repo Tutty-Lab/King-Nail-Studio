@@ -250,8 +250,9 @@ Mỗi khung có <b>số người tối thiểu và tối đa</b>. Thiếu hoặc
           hiện đỏ trong báo cáo Độ phủ. Yêu cầu của chủ tiệm: <b>phủ kín giờ mở cửa</b> và <b>đông người vào
           cao điểm</b> ({minutesToTime(PEAK_START)}–{minutesToTime(PEAK_END)}, riêng T7 từ {minutesToTime(SATURDAY_PEAK_START)}).
           Các mốc dưới đây là YÊU CẦU, không phải lúc nào cũng đủ giờ hợp đồng để trả: Papenstieg chỉ có
-          439h/tháng, thứ Ba ngân sách ~12,3h trong khi phủ kín 09:00–19:00 đã hết 10h và người thứ hai
-          15:00–19:00 thêm 4h. Những lúc không đủ, app để thiếu người ở cao điểm chứ <b>không bao giờ để tiệm
+          439h/tháng, mỗi ngày thường phủ kín 09:00–19:00 đã hết 10h và người thứ hai 15:00–19:00 thêm
+          4h. <b>Thứ Ba vắng nhất nên cao điểm chỉ cần 1 người</b> (cả hai cơ sở) — số giờ đó dành cho
+          ngày đông. Những lúc không đủ, app để thiếu người ở cao điểm chứ <b>không bao giờ để tiệm
           trống</b>, và báo cáo Độ phủ hiện đỏ chỗ đó.
         </p>
         <div className="space-y-4">

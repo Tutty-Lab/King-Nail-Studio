@@ -29,6 +29,8 @@ die Bảng chấm công gibt EINE PDF mit den Seiten beider Studios aus.
   mindestens eine Person (harte Regel `Trong giờ mở cửa` in beiden Studios).
 - **Hauptzeit:** Mo–Fr 15:00–19:00, Sa 11:00–19:00. Dort stehen mehr Leute:
   Arkaden 2 Personen (samstags 3), Papenstieg 2 Personen (auch samstags).
+  **Ausnahme Dienstag:** der ruhigste Tag, in beiden Studios reicht dienstags
+  auch in der Hauptzeit **eine** Person (Vorgabe des Betriebs).
 - **Tagesgewichte** (für beide gleich): Mo 1,2 · Di 1,0 · Mi 1,2 · Do 1,2 ·
   **Fr 2,0 · Sa 2,0**. Freitag und Samstag sind die stärksten Tage.
 - **Feste Wochen für die Vollzeitkräfte:** Nguyen Xuan Manh, Pham Van Nha,
@@ -75,11 +77,11 @@ eines Tages folgt aus den Verträgen. Gemessen über alle zwölf Monate 2026:
 | Filiale | fehlende halbe Stunden in der Hauptzeit | wo |
 |---|---|---|
 | Schloss Arkaden | 23 im Jahr (höchstens 13 im Monat) | nur samstags, dritte Person |
-| Papenstieg | 34 im Jahr (höchstens 14 im Monat) | vor allem Mo |
+| Papenstieg | 17 im Jahr (höchstens 12 im Monat) | Mo und Sa |
 
 Grund: der Monat hat in Papenstieg 439 Vertragsstunden, und die reine
-Mindestbesetzung (Abdeckung + zweite Person in der Hauptzeit) kostet schon rund
-86 h je Woche von 101 h. Es bleibt also kaum Luft, und jede Rundung auf die
+Mindestbesetzung (Abdeckung + zweite Person in der Hauptzeit, dienstags nur
+Abdeckung) kostet schon rund 82 h je Woche von 101 h. Es bleibt also kaum Luft, und jede Rundung auf die
 halbe Stunde schlägt durch. Dasselbe passiert in einer **angebrochenen Woche am
 Monatsrand**. Der Bericht „Độ phủ" zeigt diese halben Stunden rot an.
 
@@ -105,11 +107,14 @@ Zwei Schritte im Planer holen hier das Meiste heraus (siehe
    Hauptzeit – und jede Person hat einen freien Tag zusätzlich zum Sonntag.
 
 Zusammen sank die Zahl der roten halben Stunden in Papenstieg von 108 auf 34.
+Seit dienstags eine Person in der Hauptzeit genügt, sind es noch 17: der
+Dienstag braucht rund 4 h weniger, die gehen an Mo und Mi–Sa.
 
-**Was das Budget NICHT hergibt:** in Papenstieg liegen alle Tage nahe an der
-Mindestbesetzung, um 17 Uhr stehen an jedem Wochentag genau 2 Personen. Die
-starken Tage bekommen dort nur 1,16-mal so viele Stunden wie ein Dienstag
-(Arkaden: 1,55-mal, samstags knapp 5 Personen um 17 Uhr). Wer freitags und
+**Was das Budget NICHT hergibt:** in Papenstieg liegen alle Tage außer dem
+Dienstag nahe an der Mindestbesetzung, um 17 Uhr stehen Mo–Sa meist 2 Personen
+(dienstags oft nur eine). Freitag und Samstag bekommen dort rund 1,5-mal so
+viele Stunden wie ein Dienstag (Arkaden: 1,8-mal, samstags rund 4,5 Personen
+um 17 Uhr). Wer freitags und
 samstags in Papenstieg sichtbar mehr Personal will, braucht mehr
 Vertragsstunden – rund 2 h je Woche schließen auch die letzten roten Stellen.
 

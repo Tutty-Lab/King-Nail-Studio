@@ -3,8 +3,9 @@
 // vom Scheduler kommt oder von einer Änderung im Plan von Hand.
 //
 // Schloss Arkaden: offen 09:30–20:00, in der Hauptzeit 15:00–19:00 sollen
-// Mo–Fr mindestens 2 Leute da sein, samstags 11:00–19:00 mindestens 3 – und zu
-// jeder Öffnungsminute mindestens eine Person.
+// Mo–Fr mindestens 2 Leute da sein (nur der ruhige Dienstag kommt mit einer
+// aus), samstags 11:00–19:00 mindestens 3 – und zu jeder Öffnungsminute
+// mindestens eine Person.
 // ============================================================================
 
 import { describe, expect, it } from "vitest";
@@ -21,7 +22,7 @@ const emp = (id: string): Employee => ({
 });
 
 /** Nachmittagsdienst 15:00–19:00 (4 h bezahlt, keine Pause nötig). */
-const peak = (id: string, date = "2026-09-01"): Shift => ({
+const peak = (id: string, date = "2026-09-02"): Shift => ({
   id: `shift-${id}`,
   employeeId: id,
   date,
@@ -34,7 +35,7 @@ const peak = (id: string, date = "2026-09-01"): Shift => ({
 });
 
 /** Ganzer Tag 09:30–20:00 ist mit einer 8-h-Schicht nicht zu schaffen … */
-const frueh = (id: string, date = "2026-09-01"): Shift => ({
+const frueh = (id: string, date = "2026-09-02"): Shift => ({
   id: `shift-frueh-${id}`,
   employeeId: id,
   date,
@@ -46,7 +47,7 @@ const frueh = (id: string, date = "2026-09-01"): Shift => ({
   generated: true,
 });
 
-const spaet = (id: string, date = "2026-09-01"): Shift => ({
+const spaet = (id: string, date = "2026-09-02"): Shift => ({
   id: `shift-spaet-${id}`,
   employeeId: id,
   date,
@@ -65,26 +66,26 @@ const analyse = (employees: Employee[], shifts: Shift[], month = 9) =>
   });
 
 describe("Zu wenige Leute in der Hauptzeit", () => {
-  // 2026-09-01 ist ein Dienstag; hier steht nur EINE Person, und die auch nur
+  // 2026-09-02 ist ein Mittwoch; hier steht nur EINE Person, und die auch nur
   // von 15 bis 19 Uhr.
   const analysis = analyse([emp("a")], [peak("a")]);
 
   it("meldet den unterbesetzten Tag, statt ihn zu verschweigen", () => {
-    const tag = analysis.peakViolations.find((d) => d.date === "2026-09-01");
+    const tag = analysis.peakViolations.find((d) => d.date === "2026-09-02");
     expect(tag).toBeDefined();
     expect(tag!.peaks.some((p) => !p.ok)).toBe(true);
   });
 
   it("nennt die tatsächliche Personenzahl und die geforderte", () => {
     const hauptzeit = analysis.peakViolations
-      .find((d) => d.date === "2026-09-01")!
-      .peaks.find((p) => p.label === "Cao điểm T2–T6" && !p.ok)!;
+      .find((d) => d.date === "2026-09-02")!
+      .peaks.find((p) => p.label === "Cao điểm T2, T4–T6" && !p.ok)!;
     expect(hauptzeit.minStaff).toBe(1); // so viele stehen wirklich da
     expect(hauptzeit.required).toBe(2); // Vorgabe: zwei in der Hauptzeit
   });
 
   it("meldet die Lücke am Vormittag – von 09:30 an ist niemand da", () => {
-    const day = analysis.days.find((d) => d.date === "2026-09-01")!;
+    const day = analysis.days.find((d) => d.date === "2026-09-02")!;
     const offen = day.peaks.find((p) => p.label === "Trong giờ mở cửa")!;
     expect(offen.minStaff).toBe(0);
     expect(offen.ok).toBe(false);
@@ -92,7 +93,7 @@ describe("Zu wenige Leute in der Hauptzeit", () => {
 
   it("akzeptiert zwei Leute, die zusammen den ganzen Tag abdecken", () => {
     const report = analyse([emp("a"), emp("b")], [frueh("a"), spaet("b"), peak("c-nicht")].slice(0, 2));
-    const day = report.days.find((d) => d.date === "2026-09-01")!;
+    const day = report.days.find((d) => d.date === "2026-09-02")!;
     expect(day.peaks.find((p) => p.label === "Trong giờ mở cửa")?.ok).toBe(true);
   });
 
@@ -106,8 +107,8 @@ describe("Zu wenige Leute in der Hauptzeit", () => {
         { ...peak("c"), pauseMinutes: 30, paidMinutes: 3 * 60 + 30, endMinutes: 19 * 60, pauseStartMinutes: 16 * 60 },
       ],
     );
-    const day = report.days.find((d) => d.date === "2026-09-01")!;
-    const hauptzeit = day.peaks.find((p) => p.label === "Cao điểm T2–T6")!;
+    const day = report.days.find((d) => d.date === "2026-09-02")!;
+    const hauptzeit = day.peaks.find((p) => p.label === "Cao điểm T2, T4–T6")!;
     // 15:00–19:00 sind b und c da – ausser von 16:00 bis 16:30, da hat c Pause.
     expect(hauptzeit.maxStaff).toBe(2);
     expect(hauptzeit.minStaff).toBe(1);
@@ -122,5 +123,17 @@ describe("Zu wenige Leute in der Hauptzeit", () => {
     expect(samstag.required).toBe(3);
     expect(samstag.startMinutes).toBe(11 * 60);
     expect(samstag.ok).toBe(false);
+  });
+
+  it("dienstags reicht eine Person in der Hauptzeit", () => {
+    // 2026-09-01 ist ein Dienstag: früh + spät decken den Tag, von 15 bis 19
+    // Uhr steht nur eine Person – das ist dienstags in Ordnung.
+    const report = analyse([emp("a"), emp("b")], [frueh("a", "2026-09-01"), spaet("b", "2026-09-01")]);
+    const day = report.days.find((d) => d.date === "2026-09-01")!;
+    const dienstag = day.peaks.find((p) => p.label === "Cao điểm T3")!;
+    expect(dienstag.required).toBe(1);
+    expect(dienstag.ok).toBe(true);
+    expect(day.peaks.some((p) => p.label === "Cao điểm T2, T4–T6")).toBe(false);
+    expect(report.peakViolations.some((d) => d.date === "2026-09-01")).toBe(false);
   });
 });

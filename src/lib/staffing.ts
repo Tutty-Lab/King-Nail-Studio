@@ -49,7 +49,12 @@ export const clip = (from: number, to: number) => (blocks: DayBlocks): DayWindow
 export const wholeDay = (blocks: DayBlocks): DayWindow[] =>
   blocks.map((block) => ({ startMinutes: block.startMinutes, endMinutes: block.endMinutes }));
 
-const WERKTAGE: readonly WeekdayKey[] = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+/**
+ * Werktage mit zwei Leuten in der Hauptzeit. Dienstag fehlt absichtlich: der
+ * Betrieb sagt, dienstags kommen so wenige Kundinnen, dass eine Person auch
+ * am Nachmittag reicht („thứ 3 ít khách lắm, 1 người ok").
+ */
+const WERKTAGE: readonly WeekdayKey[] = ["monday", "wednesday", "thursday", "friday"];
 
 /**
  * Cơ sở 1 – Schloss Arkaden (658 Vertragsstunden im Monat, offen 09:30–20:00).
@@ -58,10 +63,11 @@ const WERKTAGE: readonly WeekdayKey[] = ["monday", "tuesday", "wednesday", "thur
  *  - „Peak T2–T6 15:00–19:00, T7 11:00–19:00" – dort die höhere Untergrenze.
  *    Samstag ist der stärkste Tag (Gewicht 2,0) und trägt deshalb drei Leute.
  *
- * Die Untergrenzen sind gegen das Stundenbudget gerechnet: der schwächste Tag
- * (Dienstag) hat rund 17,7 h – Abdeckung 09:30–20:00 plus eine zweite Person
- * von 15 bis 19 Uhr kostet 14,5 h, passt also. Samstag hat rund 35 h, drei
- * Personen von 11 bis 19 Uhr kosten etwa 31 h.
+ *  - Dienstag, der ruhigste Tag: auch in der Hauptzeit reicht EINE Person.
+ *    Die Mindestbesetzung kostet dienstags so nur die 10,5 h Öffnungszeit statt
+ *    14,5 h; der Rest wandert über die Tagesgewichte an die vollen Tage.
+ *
+ * Samstag hat rund 38 h, drei Personen von 11 bis 19 Uhr kosten etwa 26,5 h.
  */
 export const ARKADEN_STAFFING_RULES: readonly StaffingRule[] = [
   {
@@ -69,8 +75,12 @@ export const ARKADEN_STAFFING_RULES: readonly StaffingRule[] = [
     windows: wholeDay,
   },
   {
-    label: "Cao điểm T2–T6", when: "15:00–19:00", minStaff: 2, maxStaff: 5, scaled: false,
+    label: "Cao điểm T2, T4–T6", when: "15:00–19:00", minStaff: 2, maxStaff: 5, scaled: false,
     weekdays: WERKTAGE, windows: clip(PEAK_START, PEAK_END),
+  },
+  {
+    label: "Cao điểm T3", when: "15:00–19:00 (ngày vắng)", minStaff: 1, maxStaff: 5, scaled: false,
+    weekdays: ["tuesday"], windows: clip(PEAK_START, PEAK_END),
   },
   {
     label: "Cao điểm T7", when: "11:00–19:00", minStaff: 3, maxStaff: 6, scaled: false,
@@ -81,16 +91,15 @@ export const ARKADEN_STAFFING_RULES: readonly StaffingRule[] = [
 /**
  * Cơ sở 2 – Papenstieg (439 Vertragsstunden, offen 09:00–19:00, Sa bis 18:00).
  *
- * Dieselbe Vorgabe wie in Arkaden: in der Hauptzeit zwei Personen, samstags
- * ebenfalls zwei (kleineres Team, kürzerer Samstag).
+ * Dieselbe Vorgabe wie in Arkaden: in der Hauptzeit zwei Personen (dienstags
+ * eine), samstags ebenfalls zwei (kleineres Team, kürzerer Samstag).
  *
- * ACHTUNG, das Budget ist knapp: das Tagesbudget folgt aus den Verträgen, und
- * ein Dienstag hat nur rund 12,3 h – die Abdeckung 09:00–19:00 kostet allein
- * 10 h, die zweite Person von 15 bis 19 Uhr weitere 4 h. An Dienstagen (und
- * gelegentlich montags) fehlt deshalb rechnerisch eine halbe bis anderthalb
- * Stunden; der Planer lässt dann in der Hauptzeit eine Lücke, NIE aber bei der
- * Abdeckung. Der Bericht „Độ phủ" zeigt diese Stellen rot an. Wer sie schließen
- * will, braucht mehr Vertragsstunden in Papenstieg.
+ * ACHTUNG, das Budget ist knapp: die Mindestbesetzung kostet an T2/T4–T6 je
+ * 14 h (Abdeckung 09:00–19:00 = 10 h, zweite Person 15–19 Uhr = 4 h). Dass der
+ * Dienstag nur die 10 h Abdeckung braucht, macht rund 4 h je Woche für die
+ * anderen Tage frei. Wo es trotzdem nicht reicht (2026: 17 halbe Stunden, Mo
+ * und Sa), lässt der Planer in der Hauptzeit eine Lücke, NIE aber bei der
+ * Abdeckung. Der Bericht „Độ phủ" zeigt diese Stellen rot an.
  */
 export const PAPENSTIEG_STAFFING_RULES: readonly StaffingRule[] = [
   {
@@ -98,8 +107,12 @@ export const PAPENSTIEG_STAFFING_RULES: readonly StaffingRule[] = [
     windows: wholeDay,
   },
   {
-    label: "Cao điểm T2–T6", when: "15:00–19:00", minStaff: 2, maxStaff: 4, scaled: false,
+    label: "Cao điểm T2, T4–T6", when: "15:00–19:00", minStaff: 2, maxStaff: 4, scaled: false,
     weekdays: WERKTAGE, windows: clip(PEAK_START, PEAK_END),
+  },
+  {
+    label: "Cao điểm T3", when: "15:00–19:00 (ngày vắng)", minStaff: 1, maxStaff: 4, scaled: false,
+    weekdays: ["tuesday"], windows: clip(PEAK_START, PEAK_END),
   },
   {
     label: "Cao điểm T7", when: "11:00–18:00", minStaff: 2, maxStaff: 4, scaled: false,
