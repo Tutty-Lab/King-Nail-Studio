@@ -141,7 +141,7 @@ function BlockRow({
 }
 
 export function SettingsTab({ store }: { store: UseScheduleReturn }) {
-  const { schedule, updateMeta, upsertOverride, removeOverride, changePassword } = store;
+  const { schedule, updateMeta, upsertOverride, removeOverride } = store;
 
   // ---- Ngày đặc biệt (Ausnahmen) ----
   const monthDates = useMemo(
@@ -449,7 +449,6 @@ export function SettingsTab({ store }: { store: UseScheduleReturn }) {
         )}
       </section>
 
-      <PasswordSection onChange={changePassword} />
     </div>
   );
 }
@@ -461,7 +460,7 @@ export function SettingsTab({ store }: { store: UseScheduleReturn }) {
  * einzelnen Monat. Das alte Passwort wird abgefragt, damit nicht jeder, der
  * gerade vor dem offenen Tablet steht, die Filiale aussperren kann.
  */
-function PasswordSection({
+export function PasswordSection({
   onChange,
 }: {
   onChange: (alt: string, neu: string) => Promise<string | null>;

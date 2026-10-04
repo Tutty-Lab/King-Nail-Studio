@@ -17,7 +17,7 @@
 // ============================================================================
 
 import { loadState } from "./storage";
-import { loadStoreId } from "./stores";
+import { STORES } from "./stores";
 
 /** Gilt, solange die Filiale kein eigenes Passwort gesetzt hat. */
 export const DEFAULT_PASSWORD = "1991";
@@ -60,8 +60,13 @@ export function isAuthenticated(): boolean {
  * Läuft VOR dem React-Zustand und liest den Hash deshalb direkt aus dem
  * LocalStorage; die App schreibt ihn dort bei jeder Änderung mit.
  */
-export async function login(password: string, storeId: string = loadStoreId()): Promise<boolean> {
-  const ok = await passwordMatches(password, loadState(storeId)?.passwordHash);
+export async function login(password: string): Promise<boolean> {
+  // Ein Passwort für die ganze App. Früher hatte jeder Laden sein eigenes –
+  // damit niemand ausgesperrt wird, gilt noch jedes davon.
+  let ok = false;
+  for (const store of STORES) {
+    if (await passwordMatches(password, loadState(store.id)?.passwordHash)) ok = true;
+  }
   if (!ok) return false;
   try {
     localStorage.setItem(AUTH_KEY, "ok");

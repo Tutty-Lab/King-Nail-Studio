@@ -255,8 +255,10 @@ export function useSchedule(storeId: string) {
 
   /** Passwort der Filiale ändern. Gibt eine Meldung zurück oder null bei Erfolg. */
   const changePassword = useCallback(
-    async (alt: string, neu: string): Promise<string | null> => {
-      if (!(await passwordMatches(alt, latest.current.passwordHash))) {
+    async (alt: string, neu: string, skipCheck = false): Promise<string | null> => {
+      // skipCheck: die App prüft das alte Passwort schon am ersten Laden und
+      // setzt dann dasselbe neue Passwort für alle Läden.
+      if (!skipCheck && !(await passwordMatches(alt, latest.current.passwordHash))) {
         return "Mật khẩu hiện tại không đúng.";
       }
       const sauber = neu.trim();

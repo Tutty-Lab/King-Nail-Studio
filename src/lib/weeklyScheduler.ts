@@ -2,7 +2,7 @@ import type { Employee, Shift } from "../types";
 import { DAY_WEIGHTS, datesOfMonth, parseIsoDate, weekdayKeyOf, type WeekdayKey } from "./demand";
 import { weeklyBudgetMinutes, weeklyTargetMinutes } from "./contract";
 import { calculatePause } from "./time";
-import { mayWorkOn } from "./availability";
+import { isEmployedOn, mayWorkOn } from "./availability";
 import { consecutiveRunLengthWith } from "./consecutive";
 import { effectiveWeekdayKey, resolveDay, type DayBlocks, type DayWindow, type OverrideMap, type WorkHoursConfig } from "./workHours";
 import { publicHolidays } from "./holidays";
@@ -692,9 +692,127 @@ function improveCoverage(result: Shift[], employees: Employee[], days: Map<strin
       }
       if (!changed || dayCost(onDay, day.blocks, weekday, target, ctx) >= baseline) break;
     }
+    onDay = shiftPairsIntoGaps(onDay, employees, date, day, weekday, target, partialWeek, ctx);
     output.push(...onDay);
   }
   return output;
+}
+
+/** Fehlende Personen-Minuten in den Besetzungsfenstern des Tages (0 = alles besetzt). */
+function windowShortfall(shifts: Shift[], blocks: DayBlocks, weekday: WeekdayKey, ctx: Ctx): number {
+  let missing = 0;
+  for (const window of staffingWindows(blocks, weekday, ctx.rules)) {
+    for (let minute = window.startMinutes; minute < window.endMinutes; minute += SLOT) {
+      let staff = 0;
+      for (const shift of shifts) if (workingAt(shift, minute)) staff++;
+      missing += Math.max(0, window.minStaff - staff);
+    }
+  }
+  return missing;
+}
+
+/**
+ * Pausen so legen, dass möglichst keine Lücke in der Besetzung entsteht. Nach
+ * dem Verschieben eines Dienstes liegt die Pause eines ANDEREN oft genau dort,
+ * wo jetzt jemand fehlt (12:30 Pause, 12:30 sonst niemand).
+ */
+function pausesAroundGaps(shifts: Shift[], blocks: DayBlocks, weekday: WeekdayKey, ctx: Ctx): Shift[] {
+  let current = shifts;
+  for (let i = 0; i < current.length; i++) {
+    const shift = current[i];
+    if (shift.pauseMinutes <= 0) continue;
+    let bestGap = windowShortfall(current, blocks, weekday, ctx);
+    if (bestGap === 0) return current;
+    for (const start of pauseStartCandidates(shift.startMinutes, shift.endMinutes, shift.pauseMinutes)) {
+      const candidate = current.map((s, k) => (k === i ? { ...s, pauseStartMinutes: start } : s));
+      const gap = windowShortfall(candidate, blocks, weekday, ctx);
+      if (gap < bestGap) { current = candidate; bestGap = gap; }
+    }
+  }
+  return current;
+}
+
+/**
+ * Zwei Dienste GLEICHZEITIG verschieben, solange die Hauptzeit eine Lücke hat.
+ *
+ * Typischer Fall (Papenstieg): 12:30–15:30 und 15:30–18:30 – um 18:30 fehlt
+ * die zweite Person. Schiebt man nur den späten Dienst auf 16–19 Uhr, wandert
+ * die Lücke nach 15:30; erst beide zusammen (13–16 + 16–19) schließen sie.
+ * Der Einzelschritt in improveCoverage sieht das nie, weil jeder einzelne Zug
+ * gleich teuer ist. Läuft nur an Tagen mit Lücke, die Stunden bleiben gleich.
+ */
+function shiftPairsIntoGaps(
+  onDay: Shift[],
+  employees: Employee[],
+  date: string,
+  day: Day,
+  weekday: WeekdayKey,
+  target: number | undefined,
+  partialWeek: boolean,
+  ctx: Ctx,
+): Shift[] {
+  if (windowShortfall(onDay, day.blocks, weekday, ctx) === 0) return onDay;
+  const byId = new Map(employees.map((employee) => [employee.id, employee] as const));
+  const ids = [...new Set(onDay.map((shift) => shift.employeeId))];
+  for (let round = 0; round < 3; round++) {
+    let improved = false;
+    for (let a = 0; a < ids.length; a++) {
+      for (let b = a + 1; b < ids.length; b++) {
+        const empA = byId.get(ids[a]);
+        const empB = byId.get(ids[b]);
+        if (!empA || !empB) continue;
+        const ownA = onDay.filter((shift) => shift.employeeId === empA.id);
+        const ownB = onDay.filter((shift) => shift.employeeId === empB.id);
+        const rest = onDay.filter((shift) => shift.employeeId !== empA.id && shift.employeeId !== empB.id);
+        const paidA = ownA.reduce((sum, shift) => sum + shift.paidMinutes, 0);
+        const paidB = ownB.reduce((sum, shift) => sum + shift.paidMinutes, 0);
+        const optionsA = [{ shifts: ownA }, ...optionsFor(empA, date, paidA, day.blocks, partialWeek, weekday, ctx)];
+        const optionsB = [{ shifts: ownB }, ...optionsFor(empB, date, paidB, day.blocks, partialWeek, weekday, ctx)];
+        let bestGap = windowShortfall(onDay, day.blocks, weekday, ctx);
+        let bestCost = dayCost(onDay, day.blocks, weekday, target, ctx);
+        let best: Shift[] | undefined;
+        for (const optionA of optionsA) for (const optionB of optionsB) {
+          const candidate = pausesAroundGaps([...rest, ...optionA.shifts, ...optionB.shifts], day.blocks, weekday, ctx);
+          const gap = windowShortfall(candidate, day.blocks, weekday, ctx);
+          if (gap > bestGap) continue;
+          const cost = dayCost(candidate, day.blocks, weekday, target, ctx);
+          if (gap < bestGap || cost < bestCost - 1e-9) { best = candidate; bestGap = gap; bestCost = cost; }
+        }
+        if (best) { onDay = best; improved = true; }
+        if (bestGap === 0) return onDay;
+      }
+    }
+    if (!improved) break;
+  }
+  // Manchmal hängt noch eine Pause dazwischen (12:30 frei, also kann der
+  // Mittagsdienst nicht später anfangen) – dann braucht es drei Leute auf einmal.
+  for (let a = 0; a < ids.length; a++) {
+    for (let b = a + 1; b < ids.length; b++) {
+      for (let c = b + 1; c < ids.length; c++) {
+        const trio = [ids[a], ids[b], ids[c]];
+        const rest = onDay.filter((shift) => !trio.includes(shift.employeeId));
+        const lists = trio.map((id) => {
+          const employee = byId.get(id)!;
+          const own = onDay.filter((shift) => shift.employeeId === id);
+          const paid = own.reduce((sum, shift) => sum + shift.paidMinutes, 0);
+          return [{ shifts: own }, ...optionsFor(employee, date, paid, day.blocks, partialWeek, weekday, ctx)];
+        });
+        let bestGap = windowShortfall(onDay, day.blocks, weekday, ctx);
+        let bestCost = dayCost(onDay, day.blocks, weekday, target, ctx);
+        let best: Shift[] | undefined;
+        for (const x of lists[0]) for (const y of lists[1]) for (const z of lists[2]) {
+          const candidate = pausesAroundGaps([...rest, ...x.shifts, ...y.shifts, ...z.shifts], day.blocks, weekday, ctx);
+          const gap = windowShortfall(candidate, day.blocks, weekday, ctx);
+          if (gap > bestGap || (gap === bestGap && best === undefined && gap > 0)) continue;
+          const cost = dayCost(candidate, day.blocks, weekday, target, ctx);
+          if (gap < bestGap || cost < bestCost - 1e-9) { best = candidate; bestGap = gap; bestCost = cost; }
+        }
+        if (best) onDay = best;
+        if (bestGap === 0) return onDay;
+      }
+    }
+  }
+  return onDay;
 }
 
 export function generateWeeklySchedule(input: WeeklyInput, existing: Shift[] = []): Shift[] {
@@ -725,13 +843,13 @@ export function generateWeeklySchedule(input: WeeklyInput, existing: Shift[] = [
   const monthBounds = { first: monthDates[0], last: monthDates[monthDates.length - 1] };
   // Wochenbudget je Person: Wochenvertrag × Anteil der Woche in diesem Monat nach
   // Tagesgewicht (contract.ts) – Randtage am Monatsende werden nicht überbesetzt.
-  // Ohne Wochenvertrag: Monats-Soll nach offenen Tagen (ab Eintritt) verteilt.
+  // Ohne Wochenvertrag: Monats-Soll nach offenen Tagen (Eintritt … Austritt) verteilt.
   const budgets = new Map(employees.map((employee) => {
     if (employee.weeklyHours != null) return [employee.id, weeklyBudgetMinutes(employee, openDates, monthBounds, input.workHours)] as const;
     const empWeekInfo = weekInfo.map((week) => ({
       weekStart: week.weekStart,
       openDays: (byWeek.get(week.weekStart) ?? []).filter(
-        (date) => employee.startDate == null || date >= employee.startDate,
+        (date) => isEmployedOn(employee, date),
       ).length,
     }));
     return [employee.id, weeklyTargetMinutes(employee.targetMinutes, empWeekInfo)] as const;

@@ -21,6 +21,7 @@
 import type { Employee } from "../types";
 import { DAY_WEIGHTS, parseIsoDate, weekdayKeyOf, type WeekdayKey } from "./demand";
 import { weekStartOf } from "./weeks";
+import { isEmployedOn } from "./availability";
 import { DEFAULT_WORK_HOURS, type WorkHoursConfig } from "./workHours";
 
 /** ISO "yyyy-MM-dd" + n Tage (UTC, ohne Zeitzonen-Verschiebung). */
@@ -76,7 +77,7 @@ function weekdayFactor(weekday: WeekdayKey, workHours: WorkHoursConfig): number 
  *
  * Normale Woche = Wochentage, die in mindestens zwei Wochen des Monats offen
  * sind (ein einmalig geöffneter Montag zählt nicht). Tage vor dem Eintritt
- * (startDate) fallen weg.
+ * (startDate) und nach dem Austritt (endDate) fallen weg.
  */
 export function weekSharesFor(
   emp: Employee,
@@ -96,7 +97,7 @@ export function weekSharesFor(
 
   const byWeek = new Map<string, { factor: number; days: number }>();
   for (const date of openDates) {
-    if (emp.startDate != null && date < emp.startDate) continue;
+    if (!isEmployedOn(emp, date)) continue;
     const week = weekStartOf(date);
     const entry = byWeek.get(week) ?? { factor: 0, days: 0 };
     entry.factor += weekdayFactor(weekdayKeyOf(parseIsoDate(date)), workHours);

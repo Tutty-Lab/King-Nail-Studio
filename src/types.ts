@@ -51,6 +51,12 @@ export type Employee = {
    */
   startDate?: string;
   /**
+   * Letzter Arbeitstag (Austritt), ISO "yyyy-MM-dd". Danach wird niemand mehr
+   * eingeplant, und die Tage nach dem Austritt zählen nicht ins Monats-Soll.
+   * Fehlt = arbeitet weiter (kein Austritt).
+   */
+  endDate?: string;
+  /**
    * Wochentage, an denen diese Person überhaupt eingeplant werden darf.
    * Fehlt/leer = jeder Tag ist möglich (keine Einschränkung).
    */
