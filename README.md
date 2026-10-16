@@ -123,6 +123,16 @@ Mi 22,4 · Do 22,1 · **Fr 35,8 · Sa 35,3**; Papenstieg Mo 16,5 · Di 11,4 ·
 Mi 16,5 · Do 16,5 · **Fr 23,2 · Sa 20,6**. Wer in Papenstieg volle Freitage
 UND keine roten Stellen will, braucht mehr Vertragsstunden.
 
+## Oberfläche (wie Shin Coco / Thienlong)
+
+Kopf mit Monat und Menü; Tabs Lịch làm việc · Bảng chấm công · Nhân viên und
+grüner Knopf Tạo lịch. Ein Plan je Monat (Lịch đã lưu, Archiv beim
+Monatswechsel), Popup bei fehlenden Vertragsstunden („Bỏ qua cảnh báo"),
+Luật cứng / luật mềm (`src/lib/rules.ts`) und „Tìm cách xếp khác"
+(`suggestions.ts`). Mitarbeiterformular mit Số ngày làm / tuần, Ngày nghỉ cố
+định und weichen Regeln je Person (Độ dài ca, Rải đều, Khung giờ ưu tiên).
+Die Inhaberin steht oben in der Liste und hat keinen Stundenzettel.
+
 ## PDF
 
 Stundenzettel und Dienstplan werden als **Vektor-PDF** gezeichnet (jsPDF, Text

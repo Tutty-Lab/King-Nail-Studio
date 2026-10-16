@@ -1,31 +1,36 @@
 import { useEffect, useState } from "react";
 import { useSchedule } from "./hooks/useSchedule";
-import { GenerateScheduleDialog } from "./components/GenerateScheduleDialog";
-import { PasswordSection, SettingsTab } from "./components/SettingsTab";
+import { SettingsTab } from "./components/SettingsTab";
 import { EmployeesTab } from "./components/EmployeesTab";
 import { ScheduleTab } from "./components/ScheduleTab";
-import { StundenzettelTab } from "./components/StundenzettelTab";
 import { DocsTab } from "./components/DocsTab";
+import { GenerateScheduleDialog } from "./components/GenerateScheduleDialog";
+import { SavedSchedulesPanel } from "./components/SavedSchedules";
+import { RulesPanel } from "./components/Dashboard";
 import { Dashboard } from "./components/Dashboard";
 import { LockScreen } from "./components/LockScreen";
 import { isAuthenticated, logout } from "./lib/auth";
-import { monthLabel } from "./lib/shiftOps";
-import { MONTH_NAMES_VI } from "./lib/dateFormat";
-import { isScheduleYearAllowed, SCHEDULE_YEARS } from "./lib/years";
 import { STORES } from "./lib/stores";
+import type { EmployeeChange } from "./lib/suggestions";
 
-/** Merkt sich, welchen Laden dieses Gerät zuletzt angezeigt hat. */
+/** Zuletzt angezeigter Laden (nur Ansicht, je Gerät). */
 const VIEW_KEY = "stundenzettel-app:view-store";
 
-type TabId = "einstellungen" | "mitarbeiter" | "dienstplan" | "stundenzettel";
+type TabId = "einstellungen" | "mitarbeiter" | "dienstplan" | "lich";
 
-/** Die Arbeits-Tabs. „Tài liệu" ist bewusst KEIN Tab – es öffnet sich über die Kopfzeile. */
+/**
+ * Alle Ansichten. Sichtbar als Tab sind die zwei, mit denen täglich gearbeitet
+ * wird (MAIN_TABS); Cài đặt und Tài liệu stecken im Menü ☰ oben rechts – der
+ * Bildschirm soll für den Chủ tiệm aufgeräumt sein.
+ */
 const TABS: { id: TabId; label: string }[] = [
-  { id: "einstellungen", label: "Cài đặt" },
+  // Bảng chấm công ist eine Ansicht („Chấm công") im Lịch-Tab, kein eigener Tab mehr.
+  { id: "dienstplan", label: "Chấm công" },
+  { id: "lich", label: "Lịch" },
   { id: "mitarbeiter", label: "Nhân viên" },
-  { id: "dienstplan", label: "Lịch làm việc" },
-  { id: "stundenzettel", label: "Bảng chấm công" },
+  { id: "einstellungen", label: "Cài đặt" },
 ];
+const MAIN_TABS: TabId[] = ["dienstplan", "lich", "mitarbeiter"];
 
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => isAuthenticated());
@@ -35,9 +40,12 @@ export default function App() {
 }
 
 function MainApp({ onLogout }: { onLogout: () => void }) {
-  // Beide Filialen laufen gleichzeitig – jede mit eigenem State, eigener
-  // Persistenz und eigener Sync. Angezeigt wird nur die in der Kopfzeile
-  // gewählte; erzeugt wird weiterhin für alle zusammen (Leute in zwei Läden).
+  // Alle Filialen laufen gleichzeitig – jede mit eigenem State, eigener
+  // Persistenz und eigener Sync. ANGEZEIGT wird nur der Laden, der in der
+  // Reihe unter den Tabs gewählt ist (drei Läden untereinander waren zu lang);
+  // die Kennzahlen oben zählen alle Läden zusammen. Erzeugt
+  // wird weiterhin für alle zusammen, wegen der Leute in zwei Läden.
+  // King Nail: zwei Studios, gezeigt wird das in der Reihe unter den Tabs gewählte.
   const arkaden = useSchedule(STORES[0].id);
   const papenstieg = useSchedule(STORES[1].id);
   const stores = [arkaden, papenstieg];
@@ -64,7 +72,22 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
   // Kopf steuert alle; angezeigt wird der Stand der ersten Filiale.
   const primary = arkaden;
 
-  const [tab, setTab] = useState<TabId>("einstellungen");
+  const [tab, setTab] = useState<TabId>("dienstplan");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshApp = async () => {
+    setRefreshing(true);
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      // Höchstens 3 s auf die Update-Prüfung warten (schlechtes Netz).
+      await Promise.race([reg?.update(), new Promise((resolve) => setTimeout(resolve, 3000))]);
+    } catch {
+      // egal – trotzdem neu laden
+    }
+    window.location.reload();
+  };
+  /** Popup aus ☰ Menu: „Lịch đã lưu" oder „Luật xếp lịch". */
+  const [popup, setPopup] = useState<"saved" | "rules" | null>(null);
   /** Trang Tài liệu mở riêng; đóng lại thì về đúng tab đang làm. */
   const [docsOpen, setDocsOpen] = useState(false);
 
@@ -96,192 +119,275 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  /**
+   * „Áp dụng" aus „Tìm cách xếp khác": erst die Einstellungen ändern, dann –
+   * NACH dem nächsten Rendern, wenn die Läden die neuen Mitarbeiter kennen –
+   * alle Läden für den offenen Monat neu planen.
+   */
+  const [regenPending, setRegenPending] = useState(false);
+  const applyFixes = (changes: EmployeeChange[]) => {
+    for (const change of changes) {
+      stores.find((s) => s.storeId === change.storeId)?.updateEmployee(change.employeeId, change.patch);
+    }
+    setRegenPending(true);
+  };
+  useEffect(() => {
+    if (!regenPending) return;
+    setRegenPending(false);
+    generateAll({ year: primary.schedule.year, month: primary.schedule.month });
+    openTab("dienstplan");
+  }, [regenPending]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Popup „Tạo lịch" (Demo: nur Monat/Jahr, vorausgewählt der aktuelle Kalendermonat).
+  const [genDialogOpen, setGenDialogOpen] = useState(false);
+  /** Vorauswahl im Popup: der aktuelle Kalendermonat. */
+  const today = new Date();
+  const thisMonth = { year: today.getFullYear(), month: today.getMonth() + 1 };
+
   /** Monat/Jahr für ALLE Filialen setzen. */
   const setPeriod = (patch: { year?: number; month?: number }) => {
     for (const s of stores) s.updateMeta(patch);
   };
 
-  // „Tạo lịch làm việc" sitzt über den Tabs – erreichbar von jedem Tab aus. Popup
-  // statt window.confirm: eingebettete Browser (Messenger, Zalo) schlucken den.
-  const [genDialogOpen, setGenDialogOpen] = useState(false);
   // Kurze Erfolgsmeldung nach dem Erzeugen. genStamp steigt bei jedem
   // erfolgreichen Lauf; der Effekt liest DANACH die (frische) Prüfung beider
   // Filialen aus.
   const [toast, setToast] = useState<string | null>(null);
-  const genStampSum = arkaden.genStamp + papenstieg.genStamp;
+  /**
+   * Popup nach „Tạo lịch", wenn jemand sein Soll nicht erreicht: der Chủ tiệm
+   * sieht wer und wie viel, und entscheidet selbst – „Bỏ qua cảnh báo" nimmt es
+   * für diesen Plan hin (Dashboard wird grün), „Để sau" lässt die Warnung stehen.
+   */
+  const [quotaPopup, setQuotaPopup] = useState<{ storeId: string; name: string; messages: string[] }[] | null>(null);
+  const genStampSum = stores.reduce((sum, s) => sum + s.genStamp, 0);
   useEffect(() => {
     if (genStampSum === 0) return;
-    const allErrors = stores.flatMap((s) => s.validation.errors);
-    const fehler = allErrors.filter((e) => e.severity !== "warning").length;
-    const warn = allErrors.filter((e) => e.severity === "warning").length;
-    setToast(
-      fehler > 0
-        ? `Đã tạo lịch ${stores.length} tiệm — nhưng còn ${fehler} lỗi, xem chi tiết ở phần trạng thái.`
-        : warn > 0
-          ? `✓ Đã tạo lịch ${stores.length} tiệm (còn ${warn} cảnh báo thiếu giờ — bấm (i) để xem).`
-          : `✓ Đã tạo lịch mới cho cả ${stores.length} tiệm — hợp lệ, đúng giờ hợp đồng.`,
-    );
+    const anyIssue = stores.some((s) => s.validation.errors.length > 0 || s.analysis.peakViolations.length > 0);
+    // Demo: chỉ báo khi lịch ổn. Có vấn đề thì đã có MỘT thanh cảnh báo (Dashboard)
+    // – không thêm toast hay popup „thiếu giờ" tự bật nữa.
+    setToast(anyIssue ? null : `✓ Đã tạo lịch mới — hợp lệ, đúng giờ hợp đồng.`);
     const t = window.setTimeout(() => setToast(null), 5000);
     return () => window.clearTimeout(t);
   }, [genStampSum]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-h-screen">
-      <header className="no-print bg-slate-900 text-white shadow sticky top-0 z-30">
-        <div className="mx-auto max-w-[1500px] px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-base sm:text-lg font-semibold">
+      {/* iPhone-App vom Home-Bildschirm (black-translucent): Inhalt unter die Statusleiste schieben. */}
+      <header className="no-print bg-slate-900 text-white shadow sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto max-w-[1500px] px-3 sm:px-4 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            {/* Nur der Titel – Version und Unterzeile weggelassen (Wunsch: aufgeräumt).
+                Nur ein SYNC-FEHLER wird gezeigt: dann liegen Daten nur auf diesem Gerät. */}
+            <h1 className="truncate text-base sm:text-lg font-semibold" title={`bản ${__BUILD__}`}>
               Lịch làm việc &amp; Bảng chấm công
-              <span className="ml-2 align-middle text-[10px] font-normal text-slate-400">bản {__BUILD__}</span>
             </h1>
-            <p className="text-xs text-slate-300">
-              {STORES.map((s) => s.shortName).join(" · ")} ·{" "}
-              {monthLabel(primary.schedule.year, primary.schedule.month)}
-              {(() => {
-                const anyOn = stores.some((s) => s.remoteStatus !== "off");
-                if (!anyOn) return null;
-                const anyError = stores.some((s) => s.remoteStatus === "error");
-                const anySaving = stores.some((s) => s.remoteStatus === "saving");
-                return (
-                  <span className={anyError ? "ml-2 text-rose-300" : "ml-2 text-slate-400"}>
-                    ·{" "}
-                    {anySaving
-                      ? "đang đồng bộ…"
-                      : anyError
-                        ? "lỗi đồng bộ — dữ liệu chỉ lưu trên máy này"
-                        : "đã đồng bộ"}
-                  </span>
-                );
-              })()}
-            </p>
+            {stores.some((s) => s.remoteStatus === "error") && (
+              <p className="text-xs text-rose-300">Lỗi đồng bộ — dữ liệu chỉ lưu trên máy này</p>
+            )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Tiệm đang xem + tháng/năm (tháng dùng chung cho mọi tiệm – bản in phải cùng kỳ). */}
-            <div className="inline-flex items-center gap-1.5" aria-label="Chọn tiệm và kỳ">
-              <select
-                aria-label="Tiệm"
-                value={view.storeId}
-                onChange={(e) => chooseStore(e.target.value)}
-                className="rounded-md border border-slate-600 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900"
-              >
-                {stores.map((s) => (
-                  <option key={s.storeId} value={s.storeId} className="bg-white text-slate-900">
-                    {s.storeConfig.shortName}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Tháng"
-                value={primary.schedule.month}
-                onChange={(e) => setPeriod({ month: Number(e.target.value) })}
-                className="rounded-md border border-slate-600 bg-white px-2 py-1.5 text-sm font-medium text-slate-900"
-              >
-                {MONTH_NAMES_VI.map((name, i) => (
-                  <option key={name} value={i + 1} className="bg-white text-slate-900">
-                    {name}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Năm"
-                value={primary.schedule.year}
-                onChange={(e) => setPeriod({ year: Number(e.target.value) })}
-                className="rounded-md border border-slate-600 bg-white px-2 py-1.5 text-sm font-medium text-slate-900"
-              >
-                {(isScheduleYearAllowed(primary.schedule.year)
-                  ? SCHEDULE_YEARS
-                  : [primary.schedule.year, ...SCHEDULE_YEARS]
-                ).map((y) => (
-                  <option key={y} value={y} className="bg-white text-slate-900">
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Aus dem Menü geöffnete Seite: steht direkt neben dem Menü, mit ✕ zurück. */}
+            {(docsOpen || !MAIN_TABS.includes(tab)) && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-white py-1.5 pl-3 pr-1 text-sm font-medium text-slate-900">
+                {docsOpen ? "Tài liệu" : TABS.find((t) => t.id === tab)?.label}
+                <button
+                  type="button"
+                  onClick={() => openTab("dienstplan")}
+                  aria-label="Đóng"
+                  className="rounded px-1.5 text-slate-400 hover:text-slate-900"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {/*
+              Tải lại: als App vom Home-Bildschirm (iPhone/Safari) gibt es keine
+              Browserleiste zum Neuladen. Erst nach einer neuen Version fragen
+              (Service Worker), dann neu laden – so kommen Code UND Daten frisch.
+            */}
             <button
               type="button"
-              onClick={() => setDocsOpen((open) => !open)}
-              aria-pressed={docsOpen}
-              className={`rounded px-3 py-2 text-sm ${docsOpen ? "bg-white text-slate-900" : "bg-slate-700 hover:bg-slate-600"}`}
+              onClick={() => void refreshApp()}
+              disabled={refreshing}
+              aria-label="Tải lại"
+              title="Tải lại"
+              className="flex h-9 w-9 items-center justify-center rounded bg-slate-700 text-lg leading-none hover:bg-slate-600 disabled:opacity-60"
             >
-              Tài liệu
+              <span className={refreshing ? "inline-block animate-spin" : "inline-block"}>↻</span>
             </button>
-            <button
-              onClick={() => {
-                if (confirm(`Xoá toàn bộ dữ liệu của cả ${stores.length} tiệm?`)) {
-                  for (const s of stores) s.resetAll();
-                }
-              }}
-              className="rounded bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600"
-            >
-              Xoá dữ liệu
-            </button>
-            <button
-              onClick={() => {
-                logout();
-                onLogout();
-              }}
-              className="rounded bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600"
-            >
-              Đăng xuất
-            </button>
+            {/* Menu: alles, was nicht täglich gebraucht wird. */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                className={`rounded px-3 py-2 text-sm font-medium ${menuOpen ? "bg-white text-slate-900" : "bg-slate-700 hover:bg-slate-600"}`}
+              >
+                ☰ Menu
+              </button>
+              {menuOpen && (
+                <>
+                  {/* Klick daneben schliesst das Menü. */}
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-sm text-slate-800 shadow-lg"
+                  >
+                    {(
+                      [
+                        [`Lịch đã lưu (${view.savedMonths.length})`, () => setPopup("saved")],
+                        ["Luật xếp lịch", () => setPopup("rules")],
+                        ["Cài đặt", () => openTab("einstellungen")],
+                        ["Tài liệu", () => setDocsOpen(true)],
+                        ["Đăng xuất", () => { logout(); onLogout(); }],
+                      ] as const
+                    ).map(([label, action]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          action();
+                          setMenuOpen(false);
+                        }}
+                        className="block w-full px-4 py-2 text-left hover:bg-slate-50"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
       <div className="no-print mx-auto max-w-[1500px] px-3 sm:px-4 pt-4 space-y-4">
-        <Dashboard key={view.storeId} store={view} />
+        <Dashboard stores={stores} view={view} onChooseStore={chooseStore} onApplyFixes={applyFixes} />
       </div>
 
       <nav className="no-print mx-auto max-w-[1500px] px-3 sm:px-4 mt-4">
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((t) => {
-            const active = !docsOpen && tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => openTab(t.id)}
-                aria-current={active ? "page" : undefined}
-                className={`px-3.5 py-2 text-sm font-medium rounded-full border ${
-                  active
-                    ? "bg-slate-900 text-white border-slate-900"
-                    : "bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:border-slate-300"
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2">
+          {/* Eine Zeile: Chấm công · Lịch · Nhân viên als Segment, rechts Tạo lịch. */}
+          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-0.5">
+            {TABS.filter((t) => MAIN_TABS.includes(t.id)).map((t) => {
+              const active = !docsOpen && tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => openTab(t.id)}
+                  aria-current={active ? "page" : undefined}
+                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    active ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* „Tạo lịch" – wichtigste Aktion, rechts in der Tab-Zeile. */}
           <button
             type="button"
             onClick={() => setGenDialogOpen(true)}
             disabled={stores.every((s) => s.schedule.employees.length === 0)}
-            className="ml-auto rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 active:bg-slate-800 disabled:opacity-40"
+            className="ml-auto whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40"
           >
-            Tạo lịch làm việc
+            Tạo lịch
           </button>
         </div>
       </nav>
 
-      {/* Popup chọn tháng/năm – nhắc kiểm tra ngày lễ/giờ đặc biệt, cảnh báo thay lịch và mở khóa. */}
+      {/* Tiệm đang xem – một hàng nhãn dùng chung cho mọi tab (thay ô chọn tiệm ở đầu trang). */}
+      {!docsOpen && stores.length > 1 && (
+        <div className="no-print mx-auto max-w-[1500px] px-3 sm:px-4 mt-3">
+          <div role="tablist" aria-label="Tiệm" className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+            {stores.map((s) => {
+              const active = s.storeId === view.storeId;
+              return (
+                <button
+                  key={s.storeId}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => chooseStore(s.storeId)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                    active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  {s.storeConfig.shortName}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {genDialogOpen && (
         <GenerateScheduleDialog
+          initialTarget={thisMonth}
           currentYear={primary.schedule.year}
           currentMonth={primary.schedule.month}
           hasShifts={stores.some((s) => s.schedule.shifts.length > 0)}
           isLocked={stores.some((s) => s.isLocked)}
           dateOverrides={stores.flatMap((s) => s.schedule.dateOverrides)}
           onClose={() => setGenDialogOpen(false)}
-          onOpenSettings={() => {
-            setGenDialogOpen(false);
-            openTab("einstellungen");
-          }}
           onConfirm={(target) => {
             setGenDialogOpen(false);
             generateAll(target);
-            openTab("dienstplan");
+            if (tab !== "lich") openTab("dienstplan");
           }}
         />
+      )}
+
+      {quotaPopup && (
+        <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-900">Có người chưa đủ giờ định mức</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Lịch vẫn dùng được. Tháng này không đủ ngày trống để xếp đủ giờ cho những người dưới đây.
+              </p>
+            </div>
+            <div className="max-h-[50vh] space-y-3 overflow-y-auto px-5 py-4 text-sm">
+              {quotaPopup.map((x) => (
+                <div key={x.storeId}>
+                  <div className="mb-1 font-semibold text-slate-800">{x.name}</div>
+                  <ul className="list-disc space-y-0.5 pl-5 text-slate-700">
+                    {x.messages.map((m, i) => (
+                      <li key={i}>{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <p className="rounded bg-emerald-50 px-3 py-2 text-emerald-900">
+                Muốn app tìm cách xếp đủ giờ: bấm <b>Để sau</b>, rồi bấm <b>Tìm cách xếp khác</b> ở phần cảnh báo phía trên —
+                app tạo lịch thử và gợi ý thay đổi kèm nút <b>Áp dụng</b>.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setQuotaPopup(null)}
+                className="rounded border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                Để sau
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  for (const x of quotaPopup) stores.find((s) => s.storeId === x.storeId)?.updateMeta({ underQuotaAccepted: true });
+                  setQuotaPopup(null);
+                }}
+                className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+              >
+                Bỏ qua cảnh báo
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {(stores.some((s) => s.genError) || toast) && (
@@ -316,7 +422,7 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
         </div>
       )}
 
-      <main className="mx-auto max-w-[1500px] px-3 sm:px-4 py-4">
+      <main className="mx-auto max-w-[1500px] px-3 sm:px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {docsOpen ? (
           <div className="no-print">
             <button
@@ -331,31 +437,36 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
         ) : (
           <>
             <div className="no-print space-y-6">
-              {tab === "einstellungen" && (
-                <>
-                  <SettingsTab key={view.storeId} store={view} />
-                  {/* Ein Passwort für die ganze App – gilt für beide Läden. */}
-                  <PasswordSection
-                    onChange={async (alt, neu) => {
-                      const fehler = await arkaden.changePassword(alt, neu);
-                      if (fehler) return fehler;
-                      return papenstieg.changePassword(alt, neu, true);
-                    }}
-                  />
-                </>
-              )}
-              {tab === "mitarbeiter" && <EmployeesTab key={view.storeId} store={view} />}
+              {tab === "einstellungen" && <SettingsTab key={view.storeId} store={view} />}
+              {tab === "mitarbeiter" && <EmployeesTab key={view.storeId} store={view} allStores={stores} />}
             </div>
-            {/*
-              „Bảng chấm công" chứa vùng in và không nằm trong khối no-print.
-              „Lịch làm việc" cũng nằm ngoài vì tự mang no-print riêng.
-            */}
-            {tab === "dienstplan" && <ScheduleTab key={view.storeId} store={view} />}
-            {/* Nur der gewählte Laden – die PDF ist damit eine Datei je Laden. */}
-            {tab === "stundenzettel" && <StundenzettelTab key={view.storeId} stores={[view]} />}
+            {/* „Chấm công" tự mang no-print riêng (gồm cả phần chấm công/xuất PDF). */}
+            {(tab === "dienstplan" || tab === "lich") && (
+              <ScheduleTab key={view.storeId} store={view} mode={tab === "lich" ? "schedule" : "timesheet"} />
+            )}
           </>
         )}
       </main>
+
+      {popup && (
+        // Klick auf den Hintergrund schliesst das Popup.
+        <div
+          className="no-print fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 px-4 pt-20"
+          onClick={() => setPopup(null)}
+        >
+          <div className="max-h-[75vh] w-full max-w-2xl overflow-auto rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+            {popup === "saved" ? (
+              <SavedSchedulesPanel
+                store={view}
+                openMonth={(year, month) => setPeriod({ year, month })}
+                onClose={() => setPopup(null)}
+              />
+            ) : (
+              <RulesPanel onClose={() => setPopup(null)} />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
